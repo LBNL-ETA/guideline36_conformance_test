@@ -1,0 +1,11 @@
+device:
+  network_address:
+  device_address:
+  device_id:
+
+test:
+  test_script:
+  point_map:
+  input_points_header:
+  conditions_header:
+  output_points_header:
