@@ -67,8 +67,9 @@ class Test:
             return df_new
 
     def read_points(self):
-        for point in self.point_properties.name.values:
-            self.points[point] = self.controller.device[point].value
+        for point in sorted(self.point_properties.name.values):
+            var_name_in_test = self.point_properties.loc[point].name_in_test
+            self.points[var_name_in_test] = self.controller.device[point].value
         return self.points
 
     def start_test(self):
@@ -86,15 +87,23 @@ class Test:
             print("successfully set input values")
 
             self.test_conditions(condition=cond, st=time.time())
+            print("Conditions met. Current values = ")
+            points = self.read_points()
+            for k in sorted(points):
+                print("%s: %s" % (k, str(points[k])))
+            print()
+
             actual_outputs = self.get_current_variable_values(variable_list = self.op.columns.values)
             self.step_outputs[self.current_step] = actual_outputs
 
             if i > 1:
-                print("asserting output values now")
+                print("Checking if outputs match the expected values")
                 assertion_op = self.assert_output(expected_op_dict = expected_op, actual_output_dict=actual_outputs, acceptable_bounds_dict = output_acceptable_bounds)
                 if not assertion_op:
                     print("Test failed!")
                     return
+                print("Passed step %d"%(i))
+
             else:
                 print("not checking first step values")
 
@@ -105,7 +114,7 @@ class Test:
 
     def set_values(self, variable_value_dict):
         for key in variable_value_dict:
-            print("======setting variable %s"%key)
+            #print("======setting variable %s"%key)
             val = variable_value_dict[key]
             if type(val) == str:
                 # remove all whitespaces
@@ -125,9 +134,13 @@ class Test:
                 # TODO: handle units == 'percent'
                 value_to_set = val
             self.controller.device[key] = value_to_set
-            print("======done setting variable %s" % key)
 
-    def test_conditions(self, condition, st, sleep_interval=None, verbose=True):
+            var_name_in_test = self.point_properties.loc[key].name_in_test
+            print("Setting input %s to %s"%(var_name_in_test, value_to_set))
+            #print("======done setting variable %s" % key)
+        print()
+
+    def test_conditions(self, condition, st, sleep_interval=None, verbose=False):
         current_time = time.time()
 
         while current_time - st <= condition['ClkTime']:
@@ -145,10 +158,14 @@ class Test:
 
                 if actual_output_variable_value >= output_value_to_check:
                     print("condition satisfied, variable %s value %f >= condition value %f"%(output_variable_to_check, actual_output_variable_value, output_value_to_check))
+                    print()
                     return
 
             if (int(current_time - st))%60 == 0:
-                print(self.read_points())
+                points = self.read_points()
+                for k in sorted(points):
+                    print("%s: %s" % (k, str(points[k])))
+                print()
 
             # TODO: put sleep, maybe?
             if sleep_interval:
@@ -264,16 +281,40 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", help="reset point values to first stage", action='store_true')
+    parser.add_argument("--output", help="print point values", action='store_true')
 
     args = parser.parse_args()
     reset = args.reset
+    output = args.output
 
     if reset:
         print("resetting points")
         test.set_values(variable_value_dict=test.ip.iloc[1].to_dict())
-        print(test.read_points())
+        points = test.read_points()
+        cool_loop_output = points['CoolLoopOut']
+
+        while cool_loop_output != 0:
+            print("waiting for cooling loop output to drop to 0, current value = %f"%cool_loop_output)
+            time.sleep(3)
+            points = test.read_points()
+            cool_loop_output = points['CoolLoopOut']
+
+        print()
+        print("printing values")
+        for k in points:
+            print("%s: %s"%(k, str(points[k])))
+        print()
+    elif output:
+        print("printing values")
+        points = test.read_points()
+        for k in points:
+            print("%s: %s"%(k, str(points[k])))
+        print()
     else:
         print("starting test")
-        print(test.read_points())
+        points = test.read_points()
+        for k in points:
+            print("%s: %s"%(k, str(points[k])))
+        #print(test.read_points())
         test.start_test()
 
