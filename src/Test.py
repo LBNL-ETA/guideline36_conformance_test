@@ -48,6 +48,8 @@ class Test:
 
         self.current_step = None
         self.step_outputs = {}
+        self.ramp_step = False
+        self.ramp_variables = {}
 
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
         df_new = df.reset_index().drop([0, 1], axis=1)
@@ -113,14 +115,21 @@ class Test:
         return
 
     def set_values(self, variable_value_dict):
+        # start with assumption that there are no ramping variables in this step
+        self.ramp_step = False
+
         for key in variable_value_dict:
-            #print("======setting variable %s"%key)
             val = variable_value_dict[key]
             if type(val) == str:
                 # remove all whitespaces
                 val = val.replace(" ","")
 
-                if val.startswith("="):
+                if val.startswith("ramp("):
+                    self.ramp_step = True
+                    ramp_params_dict = self.get_ramp_parameter_dict(val=val)
+                    self.ramp_variables[key] = ramp_params_dict
+                    value_to_set = ramp_params_dict['ramp_start']
+                elif val.startswith("="):
                     expression = val[1:]
                     value_to_set = self.evaluate_expression(expression=expression)
                 else:
@@ -133,17 +142,55 @@ class Test:
             else:
                 # TODO: handle units == 'percent'
                 value_to_set = val
-            self.controller.device[key] = value_to_set
-
             var_name_in_test = self.point_properties.loc[key].name_in_test
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
-            #print("======done setting variable %s" % key)
+            self.controller.device[key] = value_to_set
         print()
+
+    def get_ramp_parameter_dict(self, val):
+        val = val.split("ramp(")[1][:-1]
+        string_parameters = val.split(';')
+        ramp_params = []
+        for param in string_parameters:
+            if param.startswith("="):
+                expression = param[1:]
+                val_expression = self.evaluate_expression(expression=expression)
+                ramp_params.append(val_expression)
+            else:
+                ramp_params.append(float(param))
+
+        ramp_params_dict = {}
+        ramp_params_dict['ramp_start'] = ramp_params[0]
+        ramp_params_dict['ramp_end'] = ramp_params[1]
+        ramp_params_dict['ramp_rate'] = ramp_params[2]
+        if len(ramp_params) == 4:
+            ramp_params_dict['ramp_period'] = ramp_params[3]
+        else:
+            ramp_params_dict['ramp_period'] = 60
+
+        return ramp_params_dict
+
 
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False):
         current_time = time.time()
 
         while current_time - st <= condition['ClkTime']:
+
+            # TODO: handle ramping
+            if self.ramp_step:
+                seconds_since_start = int(current_time - st)
+
+                for variable in self.ramp_variables:
+                    params = self.ramp_variables[variable]
+                    ramp_start = params['ramp_start']
+                    ramp_end = params['ramp_end']
+                    ramp_rate = params['ramp_rate']
+                    ramp_period = params['ramp_period']
+
+                    # if seconds_since_start%ramp_period == 0:
+                    #     current_period = seconds_since_start/ramp_period
+
+
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClkTime']))
 
@@ -167,9 +214,9 @@ class Test:
                     print("%s: %s" % (k, str(points[k])))
                 print()
 
-            # TODO: put sleep, maybe?
             if sleep_interval:
                 time.sleep(sleep_interval)
+
             current_time = time.time()
         print("wait time condition met")
 
@@ -273,7 +320,12 @@ class Test:
                 var_name = names_df.name.values[0]
                 return self.controller.device[var_name].value
             else:
-                return float(expression)
+                try:
+                    float_value = float(expression)
+                except Exception as e:
+                    print("cannot find variable %s"%expression)
+                    raise e
+                return float_value
 
 
 if __name__ == "__main__":
