@@ -117,6 +117,7 @@ class Test:
     def set_values(self, variable_value_dict):
         # start with assumption that there are no ramping variables in this step
         self.ramp_step = False
+        self.ramp_variables = {}
 
         for key in variable_value_dict:
             val = variable_value_dict[key]
@@ -125,7 +126,6 @@ class Test:
                 val = val.replace(" ","")
 
                 if val.startswith("ramp("):
-                    self.ramp_step = True
                     ramp_params_dict = self.get_ramp_parameter_dict(val=val)
                     self.ramp_variables[key] = ramp_params_dict
                     value_to_set = ramp_params_dict['ramp_start']
@@ -147,7 +147,7 @@ class Test:
             self.controller.device[key] = value_to_set
         print()
 
-    def get_ramp_parameter_dict(self, val):
+    def get_ramp_parameter_dict(self, val, default_ramp_period=10):
         val = val.split("ramp(")[1][:-1]
         string_parameters = val.split(';')
         ramp_params = []
@@ -160,36 +160,64 @@ class Test:
                 ramp_params.append(float(param))
 
         ramp_params_dict = {}
+
+        # if start == end, no ramping
+        if ramp_params[0] != ramp_params[1]:
+            self.ramp_step = True
+
         ramp_params_dict['ramp_start'] = ramp_params[0]
         ramp_params_dict['ramp_end'] = ramp_params[1]
-        ramp_params_dict['ramp_rate'] = ramp_params[2]
+
+        # convert ramp rate to value per second
+        ramp_params_dict['ramp_rate'] = ramp_params[2]/60.0
+
         if len(ramp_params) == 4:
             ramp_params_dict['ramp_period'] = ramp_params[3]
         else:
-            ramp_params_dict['ramp_period'] = 60
+            ramp_params_dict['ramp_period'] = default_ramp_period
 
         return ramp_params_dict
 
+    def set_ramp_value(self, variable, params, seconds_since_start):
+        ramp_start = params['ramp_start']
+        ramp_end = params['ramp_end']
+        ramp_rate = params['ramp_rate']
+        ramp_period = params['ramp_period']
+
+        if seconds_since_start % ramp_period == 0:
+            current_period = seconds_since_start / ramp_period
+            if ramp_start < ramp_end:
+                value_to_set = ramp_start + ramp_rate * current_period * ramp_period
+                if value_to_set > ramp_end:
+                    value_to_set = ramp_end
+            elif ramp_start > ramp_end:
+                value_to_set = ramp_start - ramp_rate * current_period * ramp_period
+                if value_to_set < ramp_end:
+                    value_to_set = ramp_end
+
+            current_value = self.read_points()[variable]
+            if round(value_to_set, 2) != round(current_value, 2):
+                var_name_in_test = self.point_properties.loc[variable].name_in_test
+                print()
+                print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
+                print()
+                self.controller.device[variable] = value_to_set
 
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False):
+
+        print("step = %d ramp = %r"%(self.current_step, self.ramp_step))
         current_time = time.time()
+        last_print = None
 
         while current_time - st <= condition['ClkTime']:
 
-            # TODO: handle ramping
-            if self.ramp_step:
-                seconds_since_start = int(current_time - st)
+            seconds_since_start = int(current_time - st)
 
+            if self.ramp_step:
                 for variable in self.ramp_variables:
                     params = self.ramp_variables[variable]
-                    ramp_start = params['ramp_start']
-                    ramp_end = params['ramp_end']
-                    ramp_rate = params['ramp_rate']
-                    ramp_period = params['ramp_period']
 
-                    # if seconds_since_start%ramp_period == 0:
-                    #     current_period = seconds_since_start/ramp_period
-
+                    self.set_ramp_value(variable=variable, params=params, seconds_since_start=seconds_since_start)
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClkTime']))
@@ -208,11 +236,13 @@ class Test:
                     print()
                     return
 
-            if (int(current_time - st))%60 == 0:
-                points = self.read_points()
-                for k in sorted(points):
-                    print("%s: %s" % (k, str(points[k])))
-                print()
+            if seconds_since_start%60 == 0:
+                if last_print == None or last_print != seconds_since_start/60:
+                    last_print = seconds_since_start/60
+                    points = self.read_points()
+                    for k in sorted(points):
+                        print("%s: %s" % (k, str(points[k])))
+                    print()
 
             if sleep_interval:
                 time.sleep(sleep_interval)
@@ -353,19 +383,19 @@ if __name__ == "__main__":
 
         print()
         print("printing values")
-        for k in points:
+        for k in sorted(points):
             print("%s: %s"%(k, str(points[k])))
         print()
     elif output:
         print("printing values")
         points = test.read_points()
-        for k in points:
+        for k in sorted(points):
             print("%s: %s"%(k, str(points[k])))
         print()
     else:
         print("starting test")
         points = test.read_points()
-        for k in points:
+        for k in sorted(points):
             print("%s: %s"%(k, str(points[k])))
         #print(test.read_points())
         test.start_test()
