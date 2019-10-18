@@ -4,6 +4,7 @@ import pandas as pd
 from src.Device import Device
 import time
 import argparse
+import re
 
 class Test:
     def __init__(self, config_file="config.yaml", device_init=True):
@@ -48,8 +49,12 @@ class Test:
 
         self.current_step = None
         self.step_outputs = {}
+
         self.ramp_step = False
         self.ramp_variables = {}
+
+        self.periodic_step = False
+        self.periodic_variables = {}
 
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
         df_new = df.reset_index().drop([0, 1], axis=1)
@@ -74,8 +79,15 @@ class Test:
             self.points[var_name_in_test] = self.controller.device[point].value
         return self.points
 
+    def print_points(self):
+        points = self.read_points()
+        for k in sorted(points):
+            print("%s: %s" % (k, str(points[k])))
+        print()
+
     def start_test(self):
         output_acceptable_bounds = self.acceptable_op_bounds.to_dict()
+        start_time = time.time()
         for i in range(1, self.ip.shape[0]):
             self.current_step = i
             print("starting step %d"%i)
@@ -86,14 +98,13 @@ class Test:
 
             # self.controller.set_values(point_value_dict = ip)
             self.set_values(variable_value_dict=ip)
-            print("successfully set input values")
-
-            self.test_conditions(condition=cond, st=time.time())
-            print("Conditions met. Current values = ")
-            points = self.read_points()
-            for k in sorted(points):
-                print("%s: %s" % (k, str(points[k])))
+            print("Successfully set input values=================================")
             print()
+
+            step_start_time = time.time()
+            self.test_conditions(condition=cond, st=step_start_time)
+            print("Conditions met. Current values = ")
+            self.print_points()
 
             actual_outputs = self.get_current_variable_values(variable_list = self.op.columns.values)
             self.step_outputs[self.current_step] = actual_outputs
@@ -102,22 +113,32 @@ class Test:
                 print("Checking if outputs match the expected values")
                 assertion_op = self.assert_output(expected_op_dict = expected_op, actual_output_dict=actual_outputs, acceptable_bounds_dict = output_acceptable_bounds)
                 if not assertion_op:
-                    print("Test failed!")
+                    end_time = time.time()
+                    time_elapsed = round((end_time - start_time)/60, 2)
+                    print("Test failed! Total time = %f minutes"%round(time_elapsed, 2))
+
                     return
-                print("Passed step %d"%(i))
+                step_end_time = time.time()
+                step_time_elapsed = round((step_end_time - step_start_time), 2)
+                print("Passed step %d; Time taken for this step = %f minutes"%(i, round(step_time_elapsed, 2)))
 
             else:
                 print("not checking first step values")
 
             print("moving to the next step")
             print()
-        print("Controller passed the test successfully!")
+        end_time = time.time()
+        time_elapsed = round((end_time - start_time) / 60, 2)
+        print("Controller passed the test successfully! Total time = %f minutes"%round(time_elapsed, 2))
         return
 
     def set_values(self, variable_value_dict):
         # start with assumption that there are no ramping variables in this step
         self.ramp_step = False
         self.ramp_variables = {}
+
+        self.periodic_step = False
+        self.periodic_variables = {}
 
         for key in variable_value_dict:
             val = variable_value_dict[key]
@@ -129,6 +150,10 @@ class Test:
                     ramp_params_dict = self.get_ramp_parameter_dict(val=val)
                     self.ramp_variables[key] = ramp_params_dict
                     value_to_set = ramp_params_dict['ramp_start']
+                elif val.startswith("periodic("):
+                    periodic_params_dict = self.get_periodic_parameter_dict(val=val)
+                    self.periodic_variables[key] = periodic_params_dict
+                    value_to_set = periodic_params_dict['periodic_start']
                 elif val.startswith("="):
                     expression = val[1:]
                     value_to_set = self.evaluate_expression(expression=expression)
@@ -145,7 +170,6 @@ class Test:
             var_name_in_test = self.point_properties.loc[key].name_in_test
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
             self.controller.device[key] = value_to_set
-        print()
 
     def get_ramp_parameter_dict(self, val, default_ramp_period=10):
         val = val.split("ramp(")[1][:-1]
@@ -178,6 +202,28 @@ class Test:
 
         return ramp_params_dict
 
+    def get_periodic_parameter_dict(self, val, default_period = 10):
+        val = val.split("periodic(")[1][:-1]
+        string_parameters = val.split(";")
+        periodic_params = []
+        for param in string_parameters:
+            if param.startswith("="):
+                periodic_params.append(param[1:])
+            else:
+                periodic_params.append(float(param))
+
+        self.periodic_step = True
+
+        periodic_params_dict = {}
+        periodic_params_dict['periodic_start'] = self.evaluate_expression(expression=periodic_params[0])
+        periodic_params_dict['periodic_expression'] = periodic_params[0]
+        if len(periodic_params) == 2:
+            periodic_params_dict['period'] = int(periodic_params[1])
+        else:
+            periodic_params_dict['period'] = default_period
+
+        return periodic_params_dict
+
     def set_ramp_value(self, variable, params, seconds_since_start):
         ramp_start = params['ramp_start']
         ramp_end = params['ramp_end']
@@ -195,17 +241,29 @@ class Test:
                 if value_to_set < ramp_end:
                     value_to_set = ramp_end
 
-            current_value = self.read_points()[variable]
+            current_value = self.controller.device[variable].value
             if round(value_to_set, 2) != round(current_value, 2):
                 var_name_in_test = self.point_properties.loc[variable].name_in_test
-                print()
                 print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
+                print()
+                self.controller.device[variable] = value_to_set
+
+    def set_periodic_value(self, variable, params, seconds_since_start):
+        periodic_expression = params['periodic_expression']
+        period = params['period']
+
+        if seconds_since_start%period == 0:
+            value_to_set = self.evaluate_expression(expression=periodic_expression)
+            current_value = self.controller.device[variable].value
+            if round(value_to_set, 2) != round(current_value, 2):
+                var_name_in_test = self.point_properties.loc[variable].name_in_test
+                print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
                 print()
                 self.controller.device[variable] = value_to_set
 
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False):
 
-        print("step = %d ramp = %r"%(self.current_step, self.ramp_step))
+        print("step = %d ramp = %r periodic = %r"%(self.current_step, self.ramp_step, self.periodic_step))
         current_time = time.time()
         last_print = None
 
@@ -216,8 +274,12 @@ class Test:
             if self.ramp_step:
                 for variable in self.ramp_variables:
                     params = self.ramp_variables[variable]
-
                     self.set_ramp_value(variable=variable, params=params, seconds_since_start=seconds_since_start)
+
+            if self.periodic_step:
+                for variable in self.periodic_variables:
+                    params = self.periodic_variables[variable]
+                    self.set_periodic_value(variable=variable, params=params, seconds_since_start=seconds_since_start)
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClkTime']))
@@ -225,13 +287,30 @@ class Test:
             if condition['or'] == 1:
                 output_variable_to_check = condition['VariableName']
                 output_value_to_check = condition['VariableValue']
+
+                if type(output_value_to_check) == str:
+                    operator = re.findall("\A\D+", output_value_to_check)
+                    if len(operator) == 1:
+                        operator = operator[0]
+                    else:
+                        #TODO: handle this better
+                        raise Exception("Invalid condition value in step %d for variable %s"%(self.current_step, output_variable_to_check))
+
+                    output_value_to_check = output_value_to_check.split(operator)[1]
+                    if output_value_to_check.endswith("%"):
+                        output_value_to_check = float(output_value_to_check[:-1])/100
+                    else:
+                        output_value_to_check = float(output_value_to_check)
+                else:
+                    operator = ">="
+
                 actual_output_variable_value = self.controller.device[output_variable_to_check].value
 
                 # handle percent values
                 if self.point_properties.loc[output_variable_to_check].units_state == 'percent':
                     actual_output_variable_value = actual_output_variable_value/100
 
-                if actual_output_variable_value >= output_value_to_check:
+                if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=output_value_to_check):
                     print("condition satisfied, variable %s value %f >= condition value %f"%(output_variable_to_check, actual_output_variable_value, output_value_to_check))
                     print()
                     return
@@ -239,16 +318,28 @@ class Test:
             if seconds_since_start%60 == 0:
                 if last_print == None or last_print != seconds_since_start/60:
                     last_print = seconds_since_start/60
-                    points = self.read_points()
-                    for k in sorted(points):
-                        print("%s: %s" % (k, str(points[k])))
-                    print()
+                    print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
+                    self.print_points()
 
             if sleep_interval:
                 time.sleep(sleep_interval)
 
             current_time = time.time()
         print("wait time condition met")
+
+    def evaluate_boolean_expression(self, operator, actual_value, expected_value):
+        if operator == ">" and actual_value > expected_value:
+            return True
+        elif operator == ">=" and actual_value >= expected_value:
+            return True
+        elif operator == "<" and actual_value < expected_value:
+            return True
+        elif operator == "<=" and actual_value <= expected_value:
+            return True
+        elif operator == "==" and actual_value == expected_value:
+            return True
+        else:
+            return False
 
     def get_current_variable_values(self, variable_list):
         vals = {}
@@ -276,15 +367,7 @@ class Test:
                     variable = key
                     expected_val = self.step_outputs[self.current_step - 1][variable]
 
-                    if operator == ">" and actual_val > expected_val:
-                        continue
-                    elif operator == ">=" and actual_val >= expected_val:
-                        continue
-                    elif operator == "<" and actual_val < expected_val:
-                        continue
-                    elif operator == "<=" and actual_val <= expected_val:
-                        continue
-                    elif operator == "==" and actual_val == expected_val:
+                    if self.evaluate_boolean_expression(operator=operator, actual_value=actual_val, expected_value=expected_val):
                         continue
                     else:
                         var_name = self.point_properties.loc[self.point_properties.name == key].name_in_test.values[0]
@@ -312,6 +395,8 @@ class Test:
         return True
 
     def evaluate_expression(self, expression):
+        if expression.startswith("="):
+            expression = expression[1:]
 
         while expression.find(')') != -1:
             e_loc = expression.find(')')
@@ -353,8 +438,7 @@ class Test:
                 try:
                     float_value = float(expression)
                 except Exception as e:
-                    print("cannot find variable %s"%expression)
-                    raise e
+                    raise Exception("cannot find variable %s"%expression)
                 return float_value
 
 
@@ -382,21 +466,12 @@ if __name__ == "__main__":
             cool_loop_output = points['CoolLoopOut']
 
         print()
-        print("printing values")
-        for k in sorted(points):
-            print("%s: %s"%(k, str(points[k])))
-        print()
+        test.print_points()
     elif output:
         print("printing values")
-        points = test.read_points()
-        for k in sorted(points):
-            print("%s: %s"%(k, str(points[k])))
-        print()
+        test.print_points()
     else:
-        print("starting test")
-        points = test.read_points()
-        for k in sorted(points):
-            print("%s: %s"%(k, str(points[k])))
-        #print(test.read_points())
+        print("starting test; Current values=")
+        test.print_points()
         test.start_test()
 
