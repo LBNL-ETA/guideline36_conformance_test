@@ -5,6 +5,7 @@ from src.Device import Device
 import time
 import argparse
 import re
+import os
 
 class Test:
     def __init__(self, config_file="config.yaml", device_init=True):
@@ -79,13 +80,37 @@ class Test:
             self.points[var_name_in_test] = self.controller.device[point].value
         return self.points
 
-    def print_points(self):
+    def print_points(self, to_csv=False, name=None):
         points = self.read_points()
         for k in sorted(points):
             print("%s: %s" % (k, str(points[k])))
         print()
 
-    def start_test(self):
+        if to_csv:
+            file = self.FILE_FOLDER + name + "_values.csv"
+            if not os.path.exists(file):
+                fp = open(file, "w")
+                column_names = 'time,' + ','.join(list(points.keys())) + '\n'
+                fp.write(column_names)
+            else:
+                fp = open(file, "a")
+            values = time.strftime("%Y-%m-%d %H:%M:%S")+','+','.join([str(value) for value in points.values()])+'\n'
+            fp.write(values)
+
+    def save_test_times(self, to_csv=False, name=None, step=None, st=None, et=None, duration=None):
+        if to_csv:
+            file = self.FILE_FOLDER + name + "_test_times.csv"
+            if not os.path.exists(file):
+                fp = open(file, "w")
+                column_names = 'step,start_time,end_time,duration\n'
+                fp.write(column_names)
+            else:
+                fp = open(file, "a")
+
+            values = "%d,%f,%f,%f\n"%(step, st, et, duration)
+            fp.write(values)
+
+    def start_test(self, to_csv=False, name=None):
         output_acceptable_bounds = self.acceptable_op_bounds.to_dict()
         start_time = time.time()
         for i in range(1, self.ip.shape[0]):
@@ -102,9 +127,9 @@ class Test:
             print()
 
             step_start_time = time.time()
-            self.test_conditions(condition=cond, st=step_start_time)
+            self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
             print("Conditions met. Current values = ")
-            self.print_points()
+            self.print_points(to_csv=to_csv, name=name)
 
             actual_outputs = self.get_current_variable_values(variable_list = self.op.columns.values)
             self.step_outputs[self.current_step] = actual_outputs
@@ -116,11 +141,14 @@ class Test:
                     end_time = time.time()
                     time_elapsed = round((end_time - start_time)/60, 2)
                     print("Test failed! Total time = %f minutes"%round(time_elapsed, 2))
+                    self.save_test_times(to_csv=to_csv, name=name, step=-1, st=start_time, et=end_time,
+                                         duration=time_elapsed)
 
                     return
                 step_end_time = time.time()
-                step_time_elapsed = round((step_end_time - step_start_time), 2)
+                step_time_elapsed = round((step_end_time - step_start_time)/60, 2)
                 print("Passed step %d; Time taken for this step = %f minutes"%(i, round(step_time_elapsed, 2)))
+                self.save_test_times(to_csv=to_csv, name=name, step=i, st=step_start_time, et=step_end_time, duration=step_time_elapsed)
 
             else:
                 print("not checking first step values")
@@ -130,6 +158,8 @@ class Test:
         end_time = time.time()
         time_elapsed = round((end_time - start_time) / 60, 2)
         print("Controller passed the test successfully! Total time = %f minutes"%round(time_elapsed, 2))
+        self.save_test_times(to_csv=to_csv, name=name, step=999, st=start_time, et=end_time,
+                             duration=time_elapsed)
         return
 
     def set_values(self, variable_value_dict):
@@ -261,9 +291,9 @@ class Test:
                 print()
                 self.controller.device[variable] = value_to_set
 
-    def test_conditions(self, condition, st, sleep_interval=None, verbose=False):
+    def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
 
-        print("step = %d ramp = %r periodic = %r"%(self.current_step, self.ramp_step, self.periodic_step))
+        print("step = %d " % self.current_step)
         current_time = time.time()
         last_print = None
 
@@ -311,7 +341,7 @@ class Test:
                     actual_output_variable_value = actual_output_variable_value/100
 
                 if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=output_value_to_check):
-                    print("condition satisfied, variable %s value %f >= condition value %f"%(output_variable_to_check, actual_output_variable_value, output_value_to_check))
+                    print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, output_value_to_check))
                     print()
                     return
 
@@ -319,7 +349,7 @@ class Test:
                 if last_print == None or last_print != seconds_since_start/60:
                     last_print = seconds_since_start/60
                     print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
-                    self.print_points()
+                    self.print_points(to_csv=to_csv, name=name)
 
             if sleep_interval:
                 time.sleep(sleep_interval)
@@ -448,10 +478,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", help="reset point values to first stage", action='store_true')
     parser.add_argument("--output", help="print point values", action='store_true')
+    parser.add_argument("--csv", help="save outputs to csv", action='store_true')
+    parser.add_argument("--name", help="test name", default=time.strftime("%Y%m%dT%H%M%S"))
 
     args = parser.parse_args()
     reset = args.reset
     output = args.output
+    to_csv = args.csv
+    name = args.name
+
+    print(to_csv)
+    print(name)
 
     if reset:
         print("resetting points")
@@ -473,5 +510,5 @@ if __name__ == "__main__":
     else:
         print("starting test; Current values=")
         test.print_points()
-        test.start_test()
+        test.start_test(to_csv=to_csv, name=name)
 
