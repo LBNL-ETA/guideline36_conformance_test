@@ -1,45 +1,37 @@
 import yaml
-import json
 import pandas as pd
-from src.Device import Device
 import time
 import argparse
 import re
 import os
+import math
 
 class Test:
-    def __init__(self, config_file="config.yaml", device_init=True):
+    def __init__(self, config_file, device_init=True):
         self.FILE_FOLDER = "./files/"
         self.SRC_FOLDER = "./src/"
-
+        # Open configuration
         with open(self.SRC_FOLDER+config_file, "r") as fp:
             self.config = yaml.safe_load(fp)
-
+        # Initiate Test Script
         self.test_config = self.config["test"]
         self.test_file = self.test_config["test_script"]
         self.input_points_header = self.test_config.get("input_points_header", "Simulation (controller) Inputs")
         self.conditions_header = self.test_config.get("conditions_header", "Result Time")
         self.output_points_header = self.test_config.get("output_points_header", "Expected Controller BACnet Outputs")
-
-        if device_init:
-            self.controller = Device(device_config=self.config["device"])
-
-            self.map_file = self.test_config["point_map"]
-            self.init_device(mapping_file=self.map_file)
-
-            self.init_test_sequence(filename=self.test_file, ip_header=self.input_points_header, cond_header=self.conditions_header, op_header=self.output_points_header, point_prop=self.point_properties)
-
-    def init_device(self, mapping_file):
-        with open(self.FILE_FOLDER+mapping_file, "r") as fp:
-            mapping_dict = json.load(fp)
-
-        self.mapping = pd.DataFrame(data=list(mapping_dict.keys()), index=list(mapping_dict.values()), columns=['name_in_test'])
-        self.mapping.index.name = 'bacnet_name'
+        # Initiate Device
+        self.device_config = self.config["device"]
+        if self.device_config['type'] == 'simcdl':
+            from src.DeviceSimcdl import DeviceSimcdl
+            self.controller = DeviceSimcdl(device_config=self.device_config)
+        elif self.device_config['type'] == 'bacnet':
+            from src.DeviceBacnet import DeviceBacnet
+            self.controller = DeviceBacnet(device_config=self.device_config)
+        else:
+            raise ValueError('In configuration file, device type of {0} unknown.'.format(self.device_config['type']))
+        # Initiate Test Sequence with Test and Device
         self.point_properties = self.controller.get_point_properties()
-        self.point_properties = pd.merge(left=self.point_properties, right=self.mapping, how='inner', left_index=True, right_index=True)
-        object_list = self.point_properties.apply(lambda x: (x['type'], x['address']), axis=1).values.tolist()
-        self.controller.reset_device(object_list = object_list)
-        self.points = {}
+        self.init_test_sequence(filename=self.test_file, ip_header=self.input_points_header, cond_header=self.conditions_header, op_header=self.output_points_header, point_prop=self.point_properties)
 
     def init_test_sequence(self, filename, ip_header, cond_header, op_header, point_prop):
         self.test_df = pd.read_excel(self.FILE_FOLDER+filename, index_col=0, header=None)
@@ -58,27 +50,37 @@ class Test:
         self.periodic_variables = {}
 
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
-        df_new = df.reset_index().drop([0, 1], axis=1)
+        df_new = df.reset_index().drop([0], axis=1)
         cols = ['step%d' % i for i in range(len(df_new.columns) - 2)]
         cols = ['variable_name', 'acceptable_bounds'] + cols
         df_new.columns = cols
-
         if not is_cond_df:
-            df_new['variable_name'] = df_new['variable_name'].map(lambda x: point_prop.loc[point_prop['name_in_test'] == x].name[0])
+            df_new['variable_name'] = df_new['variable_name'].map(lambda x: point_prop.loc[point_prop['name_in_test'] == x].index.values)
+            # Drop any rows that don't have 'variable_name'
+            for i in df_new.index.values:
+                if not len(df_new.loc[i,'variable_name']):
+                    df_new.drop(index=i, inplace=True)
+                else:
+                    df_new.loc[i,'variable_name'] = df_new.loc[i,'variable_name'][0]
             return df_new.set_index('variable_name').T
         else:
             df_new = df_new.set_index('variable_name').T
-            df_new.loc[df_new['or'] == 1, 'VariableName'] = df_new.loc[df_new['or'] == 1, 'VariableName'].map(lambda x: point_prop.loc[point_prop["name_in_test"] == x].name[0])
-            time_vals = df_new.loc[df_new['ClkTime'].notnull()].index
-            cond_time = pd.to_datetime(df_new.loc[time_vals, 'ClkTime'], format="%H:%M:%S")
-            df_new.loc[time_vals, 'ClkTime'] = cond_time.dt.hour * 3600 + cond_time.dt.minute * 60 + cond_time.dt.second
+            df_new.loc[pd.notna(df_new['VariableName']), 'VariableName'] = df_new.loc[pd.notna(df_new['VariableName']), 'VariableName'].map(lambda x: point_prop.loc[point_prop["name_in_test"] == x].index.values)
+            time_vals = df_new.loc[df_new['ClockTime'].notnull()].index
+            cond_time = pd.to_datetime(df_new.loc[time_vals, 'ClockTime'], format="%H:%M:%S")
+            df_new.loc[time_vals, 'ClockTime'] = cond_time.dt.hour * 3600 + cond_time.dt.minute * 60 + cond_time.dt.second
+            # Make 'VariableName' a string instead of list
+            for i in df_new.index.values:
+                if not isinstance(df_new.loc[i,'VariableName'], float):
+                    df_new.loc[i,'VariableName'] = df_new.loc[i,'VariableName'][0]
             return df_new
 
     def read_points(self):
-        for point in sorted(self.point_properties.name.values):
+        points = dict()
+        for point in sorted(self.point_properties.index.values):
             var_name_in_test = self.point_properties.loc[point].name_in_test
-            self.points[var_name_in_test] = self.controller.device[point].value
-        return self.points
+            points[var_name_in_test] = self.controller.get_current_variable_value(point)
+        return points
 
     def print_points(self, to_csv=False, name=None):
         points = self.read_points()
@@ -94,7 +96,11 @@ class Test:
                 fp.write(column_names)
             else:
                 fp = open(file, "a")
-            values = time.strftime("%Y-%m-%d %H:%M:%S")+','+','.join([str(value) for value in points.values()])+'\n'
+            if self.controller.get_type() == 'simcdl':
+                timestamp = str(self.controller.get_current_time())
+            else:
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            values = timestamp+','+','.join([str(value) for value in points.values()])+'\n'
             fp.write(values)
 
     def save_test_times(self, to_csv=False, name=None, step=None, st=None, et=None, duration=None):
@@ -112,7 +118,10 @@ class Test:
 
     def start_test(self, to_csv=False, name=None):
         output_acceptable_bounds = self.acceptable_op_bounds.to_dict()
-        start_time = time.time()
+        if self.controller.get_type() == 'simcdl':
+            start_time = 0
+        else:
+            start_time = time.time()
         for i in range(1, self.ip.shape[0]):
             self.current_step = i
             print("starting step %d"%i)
@@ -121,12 +130,18 @@ class Test:
             cond = self.cond.iloc[i]
             expected_op = self.op.iloc[i].to_dict()
 
-            # self.controller.set_values(point_value_dict = ip)
             self.set_values(variable_value_dict=ip)
             print("Successfully set input values=================================")
             print()
 
-            step_start_time = time.time()
+            if self.current_step == 1 and self.controller.get_type() == 'simcdl':
+                self.controller.initialize_sim()
+
+            if self.controller.get_type() == 'simcdl':
+                step_start_time = self.controller.get_current_time()
+            else:
+                step_start_time = time.time()
+
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
             print("Conditions met. Current values = ")
             self.print_points(to_csv=to_csv, name=name)
@@ -138,14 +153,20 @@ class Test:
                 print("Checking if outputs match the expected values")
                 assertion_op = self.assert_output(expected_op_dict = expected_op, actual_output_dict=actual_outputs, acceptable_bounds_dict = output_acceptable_bounds)
                 if not assertion_op:
-                    end_time = time.time()
+                    if self.controller.get_type() == 'simcdl':
+                        end_time = self.controller.get_current_time()
+                    else:
+                        end_time = time.time()
                     time_elapsed = round((end_time - start_time)/60, 2)
                     print("Test failed! Total time = %f minutes"%round(time_elapsed, 2))
                     self.save_test_times(to_csv=to_csv, name=name, step=-1, st=start_time, et=end_time,
                                          duration=time_elapsed)
 
                     return
-                step_end_time = time.time()
+                if self.controller.get_type() == 'simcdl':
+                    step_end_time = self.controller.get_current_time()
+                else:
+                    step_end_time = time.time()
                 step_time_elapsed = round((step_end_time - step_start_time)/60, 2)
                 print("Passed step %d; Time taken for this step = %f minutes"%(i, round(step_time_elapsed, 2)))
                 self.save_test_times(to_csv=to_csv, name=name, step=i, st=step_start_time, et=step_end_time, duration=step_time_elapsed)
@@ -169,18 +190,17 @@ class Test:
 
         self.periodic_step = False
         self.periodic_variables = {}
-
         for key in variable_value_dict:
             val = variable_value_dict[key]
             if type(val) == str:
                 # remove all whitespaces
                 val = val.replace(" ","")
 
-                if val.startswith("ramp("):
+                if "RAMP(" in val:
                     ramp_params_dict = self.get_ramp_parameter_dict(val=val)
                     self.ramp_variables[key] = ramp_params_dict
                     value_to_set = ramp_params_dict['ramp_start']
-                elif val.startswith("periodic("):
+                elif "PERIODIC(" in val:
                     periodic_params_dict = self.get_periodic_parameter_dict(val=val)
                     self.periodic_variables[key] = periodic_params_dict
                     value_to_set = periodic_params_dict['periodic_start']
@@ -188,18 +208,13 @@ class Test:
                     expression = val[1:]
                     value_to_set = self.evaluate_expression(expression=expression)
                 else:
-                    if val.lower() in ['open', 'present', 'on']:
-                        value_to_set = 'active'
-                    elif val.lower() in ['closed', 'absent', 'off']:
-                        value_to_set = 'inactive'
-                    else:
-                        value_to_set = val
+                    value_to_set = val
             else:
                 # TODO: handle units == 'percent'
                 value_to_set = val
             var_name_in_test = self.point_properties.loc[key].name_in_test
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
-            self.controller.device[key] = value_to_set
+            self.controller.set_single_point(key, value_to_set)
 
     def get_ramp_parameter_dict(self, val, default_ramp_period=10):
         val = val.split("ramp(")[1][:-1]
@@ -233,25 +248,15 @@ class Test:
         return ramp_params_dict
 
     def get_periodic_parameter_dict(self, val, default_period = 10):
-        val = val.split("periodic(")[1][:-1]
-        string_parameters = val.split(";")
-        periodic_params = []
-        for param in string_parameters:
-            if param.startswith("="):
-                periodic_params.append(param[1:])
-            else:
-                periodic_params.append(float(param))
-
         self.periodic_step = True
-
+        val = val.split("PERIODIC(")[1][:-1]
+        string_parameters = val.split(";")
         periodic_params_dict = {}
-        periodic_params_dict['periodic_start'] = self.evaluate_expression(expression=periodic_params[0])
-        periodic_params_dict['periodic_expression'] = periodic_params[0]
-        if len(periodic_params) == 2:
-            periodic_params_dict['period'] = int(periodic_params[1])
-        else:
-            periodic_params_dict['period'] = default_period
+        periodic_params_dict['periodic_start'] = self.evaluate_expression(expression=string_parameters[0])
+        periodic_params_dict['periodic_expression'] = string_parameters[0]
+        periodic_params_dict['period'] = float(string_parameters[1])
 
+        print(periodic_params_dict)
         return periodic_params_dict
 
     def set_ramp_value(self, variable, params, seconds_since_start):
@@ -271,12 +276,12 @@ class Test:
                 if value_to_set < ramp_end:
                     value_to_set = ramp_end
 
-            current_value = self.controller.device[variable].value
+            current_value = self.controller.get_current_variable_value(variable)
             if round(value_to_set, 2) != round(current_value, 2):
                 var_name_in_test = self.point_properties.loc[variable].name_in_test
                 print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
                 print()
-                self.controller.device[variable] = value_to_set
+                self.controller.set_single_point(variable, value_to_set)
 
     def set_periodic_value(self, variable, params, seconds_since_start):
         periodic_expression = params['periodic_expression']
@@ -284,20 +289,24 @@ class Test:
 
         if seconds_since_start%period == 0:
             value_to_set = self.evaluate_expression(expression=periodic_expression)
-            current_value = self.controller.device[variable].value
+            current_value = self.controller.get_current_variable_value(variable)
             if round(value_to_set, 2) != round(current_value, 2):
                 var_name_in_test = self.point_properties.loc[variable].name_in_test
                 print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
                 print()
-                self.controller.device[variable] = value_to_set
+                self.controller.set_single_point(variable, value_to_set)
 
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
 
         print("step = %d " % self.current_step)
-        current_time = time.time()
+        if self.controller.get_type() == 'simcdl':
+            current_time = self.controller.get_current_time()
+        else:
+            current_time = time.time()
+
         last_print = None
 
-        while current_time - st <= condition['ClkTime']:
+        while current_time - st < condition['ClockTime']:
 
             seconds_since_start = int(current_time - st)
 
@@ -312,9 +321,9 @@ class Test:
                     self.set_periodic_value(variable=variable, params=params, seconds_since_start=seconds_since_start)
 
             if verbose:
-                print("current time = %f, wait until %f" % (current_time - st, condition['ClkTime']))
+                print("current time = %f, wait until %f" % (current_time - st, condition['ClockTime']))
 
-            if condition['or'] == 1:
+            if pd.notna(condition['VariableName']):
                 output_variable_to_check = condition['VariableName']
                 output_value_to_check = condition['VariableValue']
 
@@ -326,36 +335,38 @@ class Test:
                         #TODO: handle this better
                         raise Exception("Invalid condition value in step %d for variable %s"%(self.current_step, output_variable_to_check))
 
-                    output_value_to_check = output_value_to_check.split(operator)[1]
-                    if output_value_to_check.endswith("%"):
-                        output_value_to_check = float(output_value_to_check[:-1])/100
-                    else:
-                        output_value_to_check = float(output_value_to_check)
+                    output_value_to_check = float(output_value_to_check.split(operator)[1])
+                    output_value_to_check = self.controller.convert_value_test_unit_to_device_unit(output_variable_to_check, output_value_to_check)
+
                 else:
                     operator = ">="
 
-                actual_output_variable_value = self.controller.device[output_variable_to_check].value
-
-                # handle percent values
-                if self.point_properties.loc[output_variable_to_check].units_state == 'percent':
-                    actual_output_variable_value = actual_output_variable_value/100
+                actual_output_variable_value = self.controller.get_current_variable_value(output_variable_to_check)
 
                 if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=output_value_to_check):
                     print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, output_value_to_check))
                     print()
                     return
-
-            if seconds_since_start%60 == 0:
-                if last_print == None or last_print != seconds_since_start/60:
-                    last_print = seconds_since_start/60
-                    print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
-                    self.print_points(to_csv=to_csv, name=name)
+            
+            if self.controller.get_type() == 'simcdl':
+                self.print_points(to_csv=to_csv, name=name)
+            else:
+                if seconds_since_start%60 == 0:
+                    if last_print == None or last_print != seconds_since_start/60:
+                        last_print = seconds_since_start/60
+                        print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
+                        self.print_points(to_csv=to_csv, name=name)
 
             if sleep_interval:
                 time.sleep(sleep_interval)
 
-            current_time = time.time()
-        print("wait time condition met")
+            if self.controller.get_type() == 'simcdl':
+                self.controller.advance_sim()
+                current_time = self.controller.get_current_time()
+            else:
+                current_time = time.time()
+                
+        print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
         if operator == ">" and actual_value > expected_value:
@@ -374,7 +385,7 @@ class Test:
     def get_current_variable_values(self, variable_list):
         vals = {}
         for var in variable_list:
-            vals[var] = self.controller.device[var].value
+            vals[var] = self.controller.get_current_variable_value(var)
         return vals
 
     def assert_output(self, expected_op_dict, actual_output_dict, acceptable_bounds_dict):
@@ -400,7 +411,7 @@ class Test:
                     if self.evaluate_boolean_expression(operator=operator, actual_value=actual_val, expected_value=expected_val):
                         continue
                     else:
-                        var_name = self.point_properties.loc[self.point_properties.name == key].name_in_test.values[0]
+                        var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print("For variable %s [or %s], actual value = %f not %s expected value = %f"%(key, var_name, actual_val, operator, expected_val))
                         return False
                 if expected_val.startswith("="):
@@ -408,17 +419,15 @@ class Test:
                     expected_value = self.evaluate_expression(expression=expression)
 
                     if abs(expected_value - actual_val) > error_bound:
-                        var_name = self.point_properties.loc[self.point_properties.name == key].name_in_test.values[0]
+                        var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f" % (
                         key, var_name, actual_val, expected_val, error_bound))
                         return False
 
             else:
-                if self.point_properties.loc[key].units_state == 'percent':
-                    actual_val = actual_val/100
-
+                expected_val = self.controller.convert_value_test_unit_to_device_unit(key, expected_val)
                 if abs(expected_val - actual_val) > error_bound:
-                    var_name = self.point_properties.loc[self.point_properties.name == key].name_in_test.values[0]
+                    var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                     print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f"%(key, var_name, actual_val, expected_val, error_bound))
                     return False
 
@@ -462,18 +471,19 @@ class Test:
         else:
             names_df = self.point_properties.loc[self.point_properties.name_in_test == expression]
             if not names_df.empty:
-                var_name = names_df.name.values[0]
-                return self.controller.device[var_name].value
+                var_name = names_df.name_in_test.values[0]
+                var_to_check = names_df.index.values[0]
+                return self.controller.get_current_variable_value(var_to_check)
             else:
                 try:
                     float_value = float(expression)
                 except Exception as e:
-                    raise Exception("cannot find variable %s"%expression)
+                    print("WARNING: cannot find variable to check %s"%expression)
                 return float_value
 
 
 if __name__ == "__main__":
-    test = Test()
+    test = Test(config_file="")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", help="reset point values to first stage", action='store_true')
@@ -508,7 +518,7 @@ if __name__ == "__main__":
         print("printing values")
         test.print_points()
     else:
-        print("starting test; Current values=")
-        test.print_points()
+        # print("starting test; Current values=")
+        # test.print_points()
         test.start_test(to_csv=to_csv, name=name)
 

@@ -1,0 +1,13 @@
+device:
+  type:
+  model_filepath:
+  model_mopath:
+  compile_fmu:
+  point_map:
+  fmu_filepath:
+
+test:
+  test_script:
+  input_points_header:
+  conditions_header:
+  output_points_header:
