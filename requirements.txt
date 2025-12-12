@@ -1,13 +1,12 @@
 # HIL requirements
-BAC0==0.99.932
+# BAC0==0.99.932
 
-# Simulation requirements
-pyfmi
-
-# general
+# General
 pyyaml
 pandas
 numpy
-
-# path handling
+openpyxl
 pathlib
+
+# FMU Management
+pyfmi
