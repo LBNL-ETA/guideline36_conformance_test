@@ -1,0 +1,11 @@
+name: g36_conformance_test
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/mnt/shared
+    stdin_open: true # equivalent to docker run -i
+    tty: true        # equivalent to docker run -t

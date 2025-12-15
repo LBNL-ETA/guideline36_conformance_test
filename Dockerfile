@@ -15,3 +15,5 @@ RUN set -ex && \
     conda install --quiet --freeze-installed -c main conda-pack
 
 RUN conda install --file requirements.txt
+
+ENV PYTHONPATH=/mnt/shared
