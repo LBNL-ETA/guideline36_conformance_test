@@ -1,6 +1,3 @@
-# HIL requirements
-# BAC0==0.99.932
-
 # General
 pyyaml
 pandas

@@ -9,15 +9,15 @@ This software has been developed to conduct standardized, repeatable and manufac
 
 ## Installation for a CDL Simulation Device
 ### Using Docker Compose
-First build the ``app`` image (if first time) and run container in detached mode: ``$ docker compose up -d``
+First build the ``simulation`` image (if first time) and run container in detached mode: ``$ docker compose up simulation -d``
 
-Then interactively attach to the ``app`` container in the right working directory: ``$ docker compose exec -w /mnt/shared app bash``
+Then interactively attach to the ``simulation`` container in the right working directory: ``$ docker compose exec -w /mnt/shared simulation bash``
 
 Run a test(s) as described in the section "Run a Test."
 
 Exit the container: ``ctrl+d``
 
-Stop and remove the ``app`` container: ``$ docker compose down``.
+Stop and remove the ``simulation`` container: ``$ docker compose down``.
 
 ### Set Up Environment Manually (if not Docker Compose or want to customize)
 Install Python3.  Recommend using Anaconda (easier installation of pyfmi).
