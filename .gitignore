@@ -1,5 +1,14 @@
 config.yaml
 
+# OpenModelica FMU Compilation Outputs
+index.html
+*.fmu
+*.makefile
+*.libs
+*_log.txt
+*.mat
+*.mos
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

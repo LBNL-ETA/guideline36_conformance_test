@@ -6,22 +6,58 @@ To achieve this goal, a performance validation method is needed to provide indep
 
 This software has been developed to conduct standardized, repeatable and manufacturer independent tests to validate that a BAS controller has been programmed in conformance with Guideline 36. Manufacturers would provide the controller (or the control program) and the software would run a suite of tests by setting a set of inputs to the controller and verifying the output signals from the controller matches the expected output as set by Guideline 36.
 
-## Installation Instructions
 
-### Set up environment
-Install python3
+## Getting Started for a CDL Simulation Device
 
-pip install -r requirements.txt
+### Using Docker Compose
+Install [Docker](https://www.docker.com/). Then, the following.
 
-Save test script to `files/`
+1. Build the ``simulation`` image (if first time) and run container in detached mode: 
 
-### Configuration
-Copy `src/config_template.yaml` to `src/config.yaml` and fill in the necessary configuration information.
+    ```
+    $ docker compose up simulation -d
+    ```
 
-## Start the test
-Reset the controller: `python3 src/Test.py --reset `
+2. Attach to the container interactively in the right working directory: 
 
-Run the test: `python3 src/Test.py`
+    ```
+    $ docker compose exec -w /mnt/shared simulation bash
+    ```
+
+3. Run a test(s) as described in the section "Run a Test."
+
+4. Exit the container: ``ctrl+d``
+
+5. Stop and remove the container: 
+
+    ```
+    $ docker compose down
+    ```
+
+### If Not Docker Compose or Want Customized Environment
+
+1. Install Python3.  Recommend using Anaconda (easier installation of pyfmi).
+
+2. Install Python packages listed in ``requirements/simulation.txt``.
+
+3. Install [OpenModelica](https://openmodelica.org/) v1.25.0.
+
+    - Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
+
+### Run a Test
+1. Configure the test:
+
+    - Save test script to `files/` and save point map to `files/simcdl/`.
+
+    - Copy `src/config_template_simcdl.yaml` to `src/config.yaml` (or custom name) and fill in the necessary configuration information.
+
+    - Configure `src/Test.py` function `__main__` to use `src/config.yaml` (or custom name), upon instantiation of `Test`.
+
+2. Start the test: 
+
+    ```
+    $ python src/Test.py
+    ```
 
 ## Copyright Notice
 
