@@ -4,6 +4,6 @@ pandas
 numpy
 openpyxl
 pathlib
-
+python > 3.9
 # FMU Management
 pyfmi
