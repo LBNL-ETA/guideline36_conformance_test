@@ -7,7 +7,7 @@ import os
 import math
 
 class Test:
-    def __init__(self, config_file, device_init=True):
+    def __init__(self, config_file="config_simcdl_2021.yaml", device_init=True):
         self.FILE_FOLDER = "./files/"
         self.SRC_FOLDER = "./src/"
         # Open configuration
@@ -43,11 +43,6 @@ class Test:
         self.current_step = None
         self.step_outputs = {}
 
-        self.ramp_step = False
-        self.ramp_variables = {}
-
-        self.periodic_step = False
-        self.periodic_variables = {}
 
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
         df_new = df.reset_index().drop([0], axis=1)
@@ -161,6 +156,8 @@ class Test:
                     print("Test failed! Total time = %f minutes"%round(time_elapsed, 2))
                     self.save_test_times(to_csv=to_csv, name=name, step=-1, st=start_time, et=end_time,
                                          duration=time_elapsed)
+                    Ramp.destroy_all()
+                    Periodic.destroy_all()
 
                     return
                 if self.controller.get_type() == 'simcdl':
@@ -179,8 +176,12 @@ class Test:
         end_time = time.time()
         time_elapsed = round((end_time - start_time) / 60, 2)
         print("Controller passed the test successfully! Total time = %f minutes"%round(time_elapsed, 2))
+        
         self.save_test_times(to_csv=to_csv, name=name, step=999, st=start_time, et=end_time,
                              duration=time_elapsed)
+        #At the end of each test step, destroy all instances of StateOperation
+        Ramp.destroy_all()
+        Periodic.destroy_all()
         return
 
     def set_values(self, variable_value_dict):
@@ -197,13 +198,33 @@ class Test:
                 val = val.replace(" ","")
 
                 if "RAMP(" in val:
-                    ramp_params_dict = self.get_ramp_parameter_dict(val=val)
-                    self.ramp_variables[key] = ramp_params_dict
-                    value_to_set = ramp_params_dict['ramp_start']
+                    op = Ramp(raw_string=val, test_obj=self, variable=key)
+                    op.get_parameter_dict()                    
+                    value_to_set = op.params['ramp_start']
                 elif "PERIODIC(" in val:
-                    periodic_params_dict = self.get_periodic_parameter_dict(val=val)
-                    self.periodic_variables[key] = periodic_params_dict
-                    value_to_set = periodic_params_dict['periodic_start']
+                    op = Periodic(raw_string=val, test_obj=self, variable=key)
+                    op.get_parameter_dict()                    
+                    value_to_set = op.params['periodic_start']
+                elif "ADD(" in val:                    
+                    op = Add(raw_string=val, test_obj=self)
+                    op.get_parameter_dict()
+                    op.set_value()
+                    value_to_set = op.computed_value                
+                elif "SUB(" in val:                    
+                    op = Sub(raw_string=val, test_obj=self)
+                    op.get_parameter_dict()
+                    op.set_value()
+                    value_to_set = op.computed_value
+                elif "MUL(" in val:                    
+                    op = Mul(raw_string=val, test_obj=self)
+                    op.get_parameter_dict()
+                    op.set_value()
+                    value_to_set = op.computed_value    
+                elif "INTERPOLATE(" in val:                    
+                    op = InterpolateOperation(raw_string=val, test_obj=self)
+                    op.get_parameter_dict()
+                    op.set_value()
+                    value_to_set = op.computed_value
                 elif val.startswith("="):
                     expression = val[1:]
                     value_to_set = self.evaluate_expression(expression=expression)
@@ -216,85 +237,7 @@ class Test:
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
             self.controller.set_single_point(key, value_to_set)
 
-    def get_ramp_parameter_dict(self, val, default_ramp_period=10):
-        val = val.split("ramp(")[1][:-1]
-        string_parameters = val.split(';')
-        ramp_params = []
-        for param in string_parameters:
-            if param.startswith("="):
-                expression = param[1:]
-                val_expression = self.evaluate_expression(expression=expression)
-                ramp_params.append(val_expression)
-            else:
-                ramp_params.append(float(param))
-
-        ramp_params_dict = {}
-
-        # if start == end, no ramping
-        if ramp_params[0] != ramp_params[1]:
-            self.ramp_step = True
-
-        ramp_params_dict['ramp_start'] = ramp_params[0]
-        ramp_params_dict['ramp_end'] = ramp_params[1]
-
-        # convert ramp rate to value per second
-        ramp_params_dict['ramp_rate'] = ramp_params[2]/60.0
-
-        if len(ramp_params) == 4:
-            ramp_params_dict['ramp_period'] = ramp_params[3]
-        else:
-            ramp_params_dict['ramp_period'] = default_ramp_period
-
-        return ramp_params_dict
-
-    def get_periodic_parameter_dict(self, val, default_period = 10):
-        self.periodic_step = True
-        val = val.split("PERIODIC(")[1][:-1]
-        string_parameters = val.split(";")
-        periodic_params_dict = {}
-        periodic_params_dict['periodic_start'] = self.evaluate_expression(expression=string_parameters[0])
-        periodic_params_dict['periodic_expression'] = string_parameters[0]
-        periodic_params_dict['period'] = float(string_parameters[1])
-
-        print(periodic_params_dict)
-        return periodic_params_dict
-
-    def set_ramp_value(self, variable, params, seconds_since_start):
-        ramp_start = params['ramp_start']
-        ramp_end = params['ramp_end']
-        ramp_rate = params['ramp_rate']
-        ramp_period = params['ramp_period']
-
-        if seconds_since_start % ramp_period == 0:
-            current_period = seconds_since_start / ramp_period
-            if ramp_start < ramp_end:
-                value_to_set = ramp_start + ramp_rate * current_period * ramp_period
-                if value_to_set > ramp_end:
-                    value_to_set = ramp_end
-            elif ramp_start > ramp_end:
-                value_to_set = ramp_start - ramp_rate * current_period * ramp_period
-                if value_to_set < ramp_end:
-                    value_to_set = ramp_end
-
-            current_value = self.controller.get_current_variable_value(variable)
-            if round(value_to_set, 2) != round(current_value, 2):
-                var_name_in_test = self.point_properties.loc[variable].name_in_test
-                print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
-                print()
-                self.controller.set_single_point(variable, value_to_set)
-
-    def set_periodic_value(self, variable, params, seconds_since_start):
-        periodic_expression = params['periodic_expression']
-        period = params['period']
-
-        if seconds_since_start%period == 0:
-            value_to_set = self.evaluate_expression(expression=periodic_expression)
-            current_value = self.controller.get_current_variable_value(variable)
-            if round(value_to_set, 2) != round(current_value, 2):
-                var_name_in_test = self.point_properties.loc[variable].name_in_test
-                print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
-                print()
-                self.controller.set_single_point(variable, value_to_set)
+    
 
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
 
@@ -309,16 +252,14 @@ class Test:
         while current_time - st < condition['ClockTime']:
 
             seconds_since_start = int(current_time - st)
+            #iterate over all StateOperation instances and call set_value
+            for obj in Ramp.instances:
+                if obj.ramp_step:
+                    obj.set_value(seconds_since_start)                    
 
-            if self.ramp_step:
-                for variable in self.ramp_variables:
-                    params = self.ramp_variables[variable]
-                    self.set_ramp_value(variable=variable, params=params, seconds_since_start=seconds_since_start)
-
-            if self.periodic_step:
-                for variable in self.periodic_variables:
-                    params = self.periodic_variables[variable]
-                    self.set_periodic_value(variable=variable, params=params, seconds_since_start=seconds_since_start)
+            for obj in Periodic.instances:
+                if self.periodic_step:
+                    obj.set_value(seconds_since_start)                    
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClockTime']))
@@ -400,11 +341,11 @@ class Test:
                 else:
                     actual_val = 1
 
-            if expected_val == "Any":
+            if expected_val == "ANY":
                 continue
             elif type(expected_val) == str:
-                if "last" in expected_val:
-                    operator = expected_val.split('last')[0]
+                if "LAST" in expected_val:
+                    operator = expected_val.split('LAST')[0]
                     variable = key
                     expected_val = self.step_outputs[self.current_step - 1][variable]
 
@@ -414,7 +355,12 @@ class Test:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print("For variable %s [or %s], actual value = %f not %s expected value = %f"%(key, var_name, actual_val, operator, expected_val))
                         return False
-                if expected_val.startswith("="):
+                elif "INTERPOLATE(" in expected_val:
+                    op = InterpolateOperation(raw_string=expected_val, test_obj=self)
+                    op.get_parameter_dict()
+                    op.set_value()
+                    expected_value = op.computed_value                                         
+                elif expected_val.startswith("="):
                     expression = expected_val[1:]
                     expected_value = self.evaluate_expression(expression=expression)
 
@@ -482,8 +428,225 @@ class Test:
                 return float_value
 
 
+class StateOperation:
+    OP_TOKEN = None 
+    def __init__(self, raw_string, test_obj, variable):
+        self.raw_string = raw_string
+        self.test = test_obj
+        self.params = {}
+        self.computed_value = None
+        self.variable = variable
+
+    def get_parameter_dict(self):
+        """Each child overrides this to extract parameters from the raw string."""
+        raise NotImplementedError        
+
+    def set_value(self):
+        """Each operation computes a value at time t."""
+        raise NotImplementedError
+    
+    
+
+class Ramp(StateOperation):
+    OP_TOKEN = "RAMP("
+    instances = []
+    
+    def __init__(self, raw_string, test_obj, variable):
+        super().__init__(raw_string, test_obj, variable)        
+        Ramp.instances.append(self)
+
+    def destroy(self):
+        """Call this to allow the object to be garbage collected."""
+        if self in Ramp.instances:
+            Ramp.instances.remove(self)
+    
+    @classmethod
+    def destroy_all(cls):
+        cls.instances.clear()
+    
+    
+    def get_parameter_dict(self):
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
+        string_parameters = [s.replace(" ", "") for s in val.split(";")]
+        self.params = {
+            "ramp_start": self.test.evaluate_expression(string_parameters[0]),
+            "ramp_end": self.test.evaluate_expression(string_parameters[1]),
+            "duration": self.test.evaluate_expression(string_parameters[2]),
+            "ramp_rate":self.test.evaluate_expression(string_parameters[2])/60,
+            "ramp_period":self.test.evaluate_expression(string_parameters[3]),
+            "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+        }
+
+    def set_value(self, seconds_since_start):        
+        ramp_start = self.params['ramp_start']
+        ramp_end = self.params['ramp_end']
+        ramp_rate = self.params['ramp_rate']
+        ramp_period = self.params['ramp_period']
+
+        if seconds_since_start % ramp_period == 0:
+            current_period = seconds_since_start / ramp_period
+            if ramp_start < ramp_end:
+                value_to_set = ramp_start + ramp_rate * current_period * ramp_period
+                if value_to_set > ramp_end:
+                    value_to_set = ramp_end
+            elif ramp_start > ramp_end:
+                value_to_set = ramp_start - ramp_rate * current_period * ramp_period
+                if value_to_set < ramp_end:
+                    value_to_set = ramp_end
+
+            current_value = self.test.controller.get_current_variable_value(self.variable)
+            if round(value_to_set, 2) != round(current_value, 2):
+                var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
+                print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
+                print()
+                self.test.controller.set_single_point(self.variable, value_to_set)
+
+class Periodic(StateOperation):
+    OP_TOKEN = "PERIODIC("
+    instances = []
+    
+    def __init__(self, raw_string, test_obj, variable):
+        super().__init__(raw_string, test_obj, variable)        
+        Periodic.instances.append(self)
+
+    def destroy(self):
+        """Call this to allow the object to be garbage collected."""
+        if self in Periodic.instances:
+            Periodic.instances.remove(self)
+            
+    @classmethod
+    def destroy_all(cls):
+        cls.instances.clear()
+    
+    def get_parameter_dict(self):
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
+        string_parameters = [s.replace(" ", "") for s in val.split(";")]
+        self.params = {
+            "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+            "periodic_expression": string_parameters[0],
+            "period": float(string_parameters[1]),
+            "periodic_step": True,
+        }
+        print(self.params)
+        
+    def set_value(self, seconds_since_start):        
+        periodic_expression = self.params['periodic_expression']
+        period = self.params['period']
+
+        if seconds_since_start%period == 0:
+            value_to_set = self.test.evaluate_expression(expression=periodic_expression)
+            current_value = self.test.controller.get_current_variable_value(self.variable)
+            if round(value_to_set, 2) != round(current_value, 2):
+                var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
+                print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
+                print()
+                self.test.controller.set_single_point(self.variable, value_to_set)
+    
+
+
+
+class StateLessOperation:
+    OP_TOKEN = None 
+    def __init__(self, raw_string, test_obj):
+        self.raw_string = raw_string
+        self.test = test_obj
+        self.params = {}
+        self.computed_value = None
+
+    def get_parameter_dict(self):
+        """Each child overrides this to extract parameters from the raw string."""
+        raise NotImplementedError        
+
+    def set_value(self):
+        """Each operation computes a value at time t."""
+        raise NotImplementedError
+        
+class TwoTermOperation(StateLessOperation):
+    """
+    Handles:
+    - parsing OP(arg1 ; arg2)
+    - evaluating both arguments
+    Child classes only define:
+    - OP_TOKEN
+    - _apply(a, b)
+    """
+
+    def get_parameter_dict(self):
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
+        string_parameters = [s.replace(" ", "") for s in val.split(";")]
+
+        self.params = {
+            "first_term": self.test.evaluate_expression(string_parameters[0]),
+            "second_term": self.test.evaluate_expression(string_parameters[1]),
+        }
+
+    def set_value(self):
+        self.computed_value = self._apply(
+            self.params["first_term"],
+            self.params["second_term"],
+        )
+
+    def _apply(self, a, b):
+        """Child classes must define the actual operation"""
+        raise NotImplementedError        
+
+class Add(TwoTermOperation):
+    OP_TOKEN = "ADD("
+
+    def _apply(self, a, b):    
+        return a + b
+
+
+class Sub(TwoTermOperation):
+    OP_TOKEN = "SUB("
+    def _apply(self, a, b):
+        return a - b
+    
+class Mul(TwoTermOperation):
+    OP_TOKEN = "MUL("
+    def _apply(self, a, b):
+        return a * b       
+
+class InterpolateOperation(StateLessOperation):
+    OP_TOKEN = "INTERPOLATE("
+    def get_parameter_dict(self):
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
+        string_parameters = val.split(";")
+        string_parameters = [s.replace(' ', '') for s in string_parameters]
+        interpolate_params_dict = {}
+        interpolate_params_dict['x'] = self.test.evaluate_expression(expression=string_parameters[0])
+        interpolate_params_dict['x0'] = self.test.evaluate_expression(expression=string_parameters[1])        
+        interpolate_params_dict['x1'] = self.test.evaluate_expression(expression=string_parameters[2])        
+        interpolate_params_dict['y0'] = self.test.evaluate_expression(expression=string_parameters[3])        
+        interpolate_params_dict['y1'] = self.test.evaluate_expression(expression=string_parameters[4]) 
+        if len(string_parameters) > 5:
+            interpolate_params_dict['min_out'] = self.evaluate_expression(expression=string_parameters[5]) 
+        else:
+            interpolate_params_dict['min_out'] = None        
+        if len(string_parameters) > 6:
+            interpolate_params_dict['max_out'] = self.evaluate_expression(expression=string_parameters[6]) 
+        else:
+            interpolate_params_dict['max_out'] = None
+        print(interpolate_params_dict)
+        self.params = interpolate_params_dict
+        
+    def set_value(self):
+        self.computed_value = self._apply()        
+                
+    def _apply(self):
+        result = self.params['y0'] + (self.params['y1'] - self.params['y0']) * \
+        ((self.params['x'] - self.params['x0']) / (self.params['x1'] - self.params['x0']))
+        if self.params['min_out'] is None and self.params['max_out'] is None:
+            return result
+        elif self.params['min_out'] is None:
+            return min(result, self.params['max_out'])
+        elif self.params['max_out'] is None:
+            return max(result, self.params['min_out'])
+        else:
+            return max(self.params['min_out'], min(result, self.params['max_out'])) 
+
 if __name__ == "__main__":
-    test = Test(config_file="")
+    test = Test(config_file="config_simcdl_draft14.yaml")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", help="reset point values to first stage", action='store_true')
