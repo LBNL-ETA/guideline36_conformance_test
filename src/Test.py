@@ -215,7 +215,7 @@ class Test:
                     op.get_parameter_dict()
                     op.set_value()
                     value_to_set = op.computed_value
-                elif "MUL(" in val:                    
+                elif "MULT(" in val:                    
                     op = Mul(raw_string=val, test_obj=self)
                     op.get_parameter_dict()
                     op.set_value()
@@ -603,7 +603,7 @@ class Sub(TwoTermOperation):
         return a - b
     
 class Mul(TwoTermOperation):
-    OP_TOKEN = "MUL("
+    OP_TOKEN = "MULT("
     def _apply(self, a, b):
         return a * b       
 
