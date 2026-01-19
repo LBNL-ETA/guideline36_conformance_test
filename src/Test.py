@@ -21,14 +21,18 @@ class Test:
         self.output_points_header = self.test_config.get("output_points_header", "Expected Controller BACnet Outputs")
         # Initiate Device
         self.device_config = self.config["device"]
-        if self.device_config['type'] == 'simcdl':
-            from src.DeviceSimcdl import DeviceSimcdl
-            self.controller = DeviceSimcdl(device_config=self.device_config)
-        elif self.device_config['type'] == 'bacnet':
-            from src.DeviceBacnet import DeviceBacnet
-            self.controller = DeviceBacnet(device_config=self.device_config)
+        device_type = self.device_config['type']
+        
+        # Import and instantiate appropriate device class
+        if device_type in ['simcdl', 'simulation']:
+            from src.device.simulation_device import SimulationDevice
+            self.controller = SimulationDevice(device_config=self.device_config)
+        elif device_type == 'bacnet':
+            from src.device.bacnet_device import BacnetDevice
+            self.controller = BacnetDevice(device_config=self.device_config)
         else:
-            raise ValueError('In configuration file, device type of {0} unknown.'.format(self.device_config['type']))
+            raise ValueError(f'In configuration file, device type "{device_type}" is unknown. '
+                           f'Valid types: "simulation", "simcdl", "bacnet"')
         # Initiate Test Sequence with Test and Device
         self.point_properties = self.controller.get_point_properties()
         self.init_test_sequence(filename=self.test_file, ip_header=self.input_points_header, cond_header=self.conditions_header, op_header=self.output_points_header, point_prop=self.point_properties)
@@ -96,10 +100,7 @@ class Test:
                 fp.write(column_names)
             else:
                 fp = open(file, "a")
-            if self.controller.get_type() == 'simcdl':
-                timestamp = str(self.controller.get_current_time())
-            else:
-                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = str(self.controller.get_current_time())
             values = timestamp+','+','.join([str(value) for value in points.values()])+'\n'
             fp.write(values)
 
@@ -118,10 +119,8 @@ class Test:
 
     def start_test(self, to_csv=False, name=None):
         output_acceptable_bounds = self.acceptable_op_bounds.to_dict()
-        if self.controller.get_type() == 'simcdl':
-            start_time = 0
-        else:
-            start_time = time.time()
+        start_time = self.controller.get_current_time()
+        
         for i in range(1, self.ip.shape[0]):
             self.current_step = i
             print("starting step %d"%i)
@@ -134,13 +133,7 @@ class Test:
             print("Successfully set input values=================================")
             print()
 
-            if self.current_step == 1 and self.controller.get_type() == 'simcdl':
-                self.controller.initialize_sim()
-
-            if self.controller.get_type() == 'simcdl':
-                step_start_time = self.controller.get_current_time()
-            else:
-                step_start_time = time.time()
+            step_start_time = self.controller.get_current_time()
 
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
             print("Conditions met. Current values = ")
@@ -153,20 +146,14 @@ class Test:
                 print("Checking if outputs match the expected values")
                 assertion_op = self.assert_output(expected_op_dict = expected_op, actual_output_dict=actual_outputs, acceptable_bounds_dict = output_acceptable_bounds)
                 if not assertion_op:
-                    if self.controller.get_type() == 'simcdl':
-                        end_time = self.controller.get_current_time()
-                    else:
-                        end_time = time.time()
+                    end_time = self.controller.get_current_time()
                     time_elapsed = round((end_time - start_time)/60, 2)
                     print("Test failed! Total time = %f minutes"%round(time_elapsed, 2))
                     self.save_test_times(to_csv=to_csv, name=name, step=-1, st=start_time, et=end_time,
                                          duration=time_elapsed)
 
                     return
-                if self.controller.get_type() == 'simcdl':
-                    step_end_time = self.controller.get_current_time()
-                else:
-                    step_end_time = time.time()
+                step_end_time = self.controller.get_current_time()
                 step_time_elapsed = round((step_end_time - step_start_time)/60, 2)
                 print("Passed step %d; Time taken for this step = %f minutes"%(i, round(step_time_elapsed, 2)))
                 self.save_test_times(to_csv=to_csv, name=name, step=i, st=step_start_time, et=step_end_time, duration=step_time_elapsed)
@@ -176,7 +163,7 @@ class Test:
 
             print("moving to the next step")
             print()
-        end_time = time.time()
+        end_time = self.controller.get_current_time()
         time_elapsed = round((end_time - start_time) / 60, 2)
         print("Controller passed the test successfully! Total time = %f minutes"%round(time_elapsed, 2))
         self.save_test_times(to_csv=to_csv, name=name, step=999, st=start_time, et=end_time,
@@ -299,11 +286,8 @@ class Test:
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
 
         print("step = %d " % self.current_step)
-        if self.controller.get_type() == 'simcdl':
-            current_time = self.controller.get_current_time()
-        else:
-            current_time = time.time()
-
+        device_type = self.controller.get_type()
+        current_time = self.controller.get_current_time()
         last_print = None
 
         while current_time - st < condition['ClockTime']:
@@ -348,7 +332,9 @@ class Test:
                     print()
                     return
             
-            if self.controller.get_type() == 'simcdl':
+            # Print progress periodically (every minute for BACnet, every step for simulation)
+            device_type = self.controller.get_type()
+            if device_type in ['simcdl', 'simulation']:
                 self.print_points(to_csv=to_csv, name=name)
             else:
                 if seconds_since_start%60 == 0:
@@ -357,14 +343,11 @@ class Test:
                         print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
                         self.print_points(to_csv=to_csv, name=name)
 
+            # Wait and advance time (simulation steps FMU, BACnet sleeps)
             if sleep_interval:
-                time.sleep(sleep_interval)
-
-            if self.controller.get_type() == 'simcdl':
-                self.controller.advance_sim()
-                current_time = self.controller.get_current_time()
-            else:
-                current_time = time.time()
+                self.controller.wait(sleep_interval)
+            
+            current_time = self.controller.get_current_time()
                 
         print("test condition finished")
 
