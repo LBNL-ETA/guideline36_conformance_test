@@ -26,6 +26,6 @@ test:
   
   # Optional: Excel header names for different sections
   # Defaults shown below if not specified
-  input_points_header: "Simulation (controller) Inputs"
-  conditions_header: "Result Time"
-  output_points_header: "Expected Controller BACnet Outputs"
+  input_points_header: "BACnet Inputs"
+  conditions_header: "Conditions for Evaluation of Test Step"
+  output_points_header: "BACnet Expected Outputs"

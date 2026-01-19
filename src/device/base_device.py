@@ -37,11 +37,11 @@ class Point:
     """
     name: str
     name_in_test: str
-    value = None
-    unit = None
-    point_type = None
-    causality = None
-    metadata = field(default_factory=dict)
+    value: any = None
+    unit: str = None
+    point_type: str = None
+    causality: str = None
+    metadata: dict = field(default_factory=dict)
     
     def __repr__(self):
         return f"Point(name='{self.name}', name_in_test='{self.name_in_test}', value={self.value})"

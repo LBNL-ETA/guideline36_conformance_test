@@ -11,6 +11,8 @@ import subprocess
 import time
 import numpy as np
 import pandas as pd
+from pathlib import Path
+from loguru import logger
 
 
 class SimulationDevice(BaseDevice):
@@ -25,7 +27,7 @@ class SimulationDevice(BaseDevice):
     model_filepath : str
         Path to the .mo Modelica model file
     model_mopath : str
-        Modelica path to the model (e.g., 'Buildings.Controls...')
+        Modelica path to the model
     fmu_filepath
         Path to the compiled .fmu file
     compile_fmu
@@ -221,8 +223,10 @@ class SimulationDevice(BaseDevice):
         
         _, _, current_time = self.sim.get_current_time()
         _, _, step = self.sim.get_step()
+        
         start_time = current_time - step
         final_time = current_time
+        
         _, _, data = self.sim.get_results([variable_name], start_time, final_time)
         
         value = data[variable_name][-1]
@@ -267,46 +271,33 @@ class SimulationDevice(BaseDevice):
     
     def wait(self, duration):
         """
-        Advance simulation by specified duration.
+        Advance simulation by one step.
         
-        Steps the simulation forward by calling advance_sim() repeatedly.
+        The test script loop handles calling this repeatedly until conditions are met.
+        Duration parameter is ignored for simulation devices (step size is fixed).
         
         Parameters
         ----------
         duration
-            Time to advance in seconds (simulation time)
+            Ignored for simulation devices (kept for interface compatibility)
         """
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
         
-        _, _, step_size = self.sim.get_step()
-        if step_size == 0:
-            step_size = 10  # Default if not set
-        
-        # Calculate number of steps needed
-        num_steps = int(duration / step_size)
-        remainder = duration % step_size
-        
-        # Step through simulation
-        for _ in range(num_steps):
-            self.advance_sim()
-        
-        # Handle remainder if needed
-        if remainder > 0:
-            original_step = step_size
-            self.sim.set_step(remainder)
-            self.advance_sim()
-            self.sim.set_step(original_step)
+        # Just advance one step - the test loop will call this repeatedly
+        self.advance_sim()
 
-    def _initialize_sim(self):
+    def _initialize_sim(self, save_point_properties=True):
         """
         Initialize the FMU simulation (private method).
         
         Compiles FMU if needed, loads it, and performs initial advancement.
         Called automatically during init_device().
         """
-        # Save point properties for debugging
-        self.get_point_properties().to_csv('point_properties.csv')
+        if save_point_properties:
+            # Save point properties for debugging (in project root)
+            debug_csv_path = Path(__file__).resolve().parent.parent / 'point_properties.csv'
+            self.get_point_properties().to_csv(debug_csv_path)
         
         # Compile FMU if requested
         if self.device_config["compile_fmu"]:
@@ -414,10 +405,8 @@ class SimulationDevice(BaseDevice):
             elif value.lower() in ['open', 'absent', 'off']:
                 value_to_set = False
             
-            if value_to_set:
-                return 'true' if par_type == 'Boolean' else 1
-            else:
-                return 'false' if par_type == 'Boolean' else 0
+            # FMU expects numeric values (1.0/0.0) for booleans, not string "true"/"false"
+            return 1.0 if value_to_set else 0.0
         
         return value
 

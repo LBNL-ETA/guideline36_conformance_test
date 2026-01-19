@@ -9,6 +9,7 @@ from src.device.base_device import BaseDevice, Point
 import BAC0
 import pandas as pd
 import time
+from pathlib import Path
 
 
 class BacnetDevice(BaseDevice):
@@ -77,7 +78,8 @@ class BacnetDevice(BaseDevice):
         # Load point mapping from CSV
         # CSV should have columns: 'Variable Name' and 'BACnet Name' (device name)
         # Can optionally include other metadata columns
-        df_mapping = pd.read_csv('./files/' + config["point_map"], header=3, index_col='BACnet Name')
+        files_folder = Path(__file__).resolve().parent.parent / "files"
+        df_mapping = pd.read_csv(files_folder / config["point_map"], header=3, index_col='BACnet Name')
         
         # Create mapping DataFrame: index=bacnet_name, column=name_in_test
         self.mapping = df_mapping[['Variable Name']].rename(columns={'Variable Name': 'name_in_test'})

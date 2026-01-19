@@ -5,20 +5,24 @@ import argparse
 import re
 import os
 import math
+from pathlib import Path
+from loguru import logger
+
 
 class Test:
     def __init__(self, config_file, device_init=True):
-        self.FILE_FOLDER = "./files/"
-        self.SRC_FOLDER = "./src/"
+        # Set paths relative to this file's location
+        self.SRC_FOLDER = Path(__file__).resolve().parent
+        self.FILE_FOLDER = self.SRC_FOLDER.parent / "files"
         # Open configuration
-        with open(self.SRC_FOLDER+config_file, "r") as fp:
+        with open(self.SRC_FOLDER / config_file, "r") as fp:
             self.config = yaml.safe_load(fp)
         # Initiate Test Script
         self.test_config = self.config["test"]
         self.test_file = self.test_config["test_script"]
-        self.input_points_header = self.test_config.get("input_points_header", "Simulation (controller) Inputs")
-        self.conditions_header = self.test_config.get("conditions_header", "Result Time")
-        self.output_points_header = self.test_config.get("output_points_header", "Expected Controller BACnet Outputs")
+        self.input_points_header = self.test_config.get("input_points_header", "BACnet Inputs")
+        self.conditions_header = self.test_config.get("conditions_header", "Conditions for Evaluation of Test Step")
+        self.output_points_header = self.test_config.get("output_points_header", "BACnet Expected Outputs")
         # Initiate Device
         self.device_config = self.config["device"]
         device_type = self.device_config['type']
@@ -38,7 +42,7 @@ class Test:
         self.init_test_sequence(filename=self.test_file, ip_header=self.input_points_header, cond_header=self.conditions_header, op_header=self.output_points_header, point_prop=self.point_properties)
 
     def init_test_sequence(self, filename, ip_header, cond_header, op_header, point_prop):
-        self.test_df = pd.read_excel(self.FILE_FOLDER+filename, index_col=0, header=None)
+        self.test_df = pd.read_excel(self.FILE_FOLDER / filename, index_col=0, header=None)
         self.ip = self.format_excel_df(df=self.test_df.loc[ip_header:cond_header].iloc[1:-1], point_prop=point_prop)
         self.cond = self.format_excel_df(df=self.test_df.loc[cond_header:op_header].iloc[1:-1], is_cond_df=True, point_prop=point_prop)
         self.op = self.format_excel_df(df=self.test_df.loc[op_header:].iloc[1:], point_prop=point_prop)
@@ -93,8 +97,8 @@ class Test:
         print()
 
         if to_csv:
-            file = self.FILE_FOLDER + name + "_values.csv"
-            if not os.path.exists(file):
+            file = self.FILE_FOLDER / f"{name}_values.csv"
+            if not file.exists():
                 fp = open(file, "w")
                 column_names = 'time,' + ','.join(list(points.keys())) + '\n'
                 fp.write(column_names)
@@ -106,8 +110,8 @@ class Test:
 
     def save_test_times(self, to_csv=False, name=None, step=None, st=None, et=None, duration=None):
         if to_csv:
-            file = self.FILE_FOLDER + name + "_test_times.csv"
-            if not os.path.exists(file):
+            file = self.FILE_FOLDER / f"{name}_test_times.csv"
+            if not file.exists():
                 fp = open(file, "w")
                 column_names = 'step,start_time,end_time,duration\n'
                 fp.write(column_names)
@@ -312,7 +316,7 @@ class Test:
                 output_value_to_check = condition['VariableValue']
 
                 if type(output_value_to_check) == str:
-                    operator = re.findall("\A\D+", output_value_to_check)
+                    operator = re.findall(r"\A\D+", output_value_to_check)
                     if len(operator) == 1:
                         operator = operator[0]
                     else:
@@ -344,8 +348,8 @@ class Test:
                         self.print_points(to_csv=to_csv, name=name)
 
             # Wait and advance time (simulation steps FMU, BACnet sleeps)
-            if sleep_interval:
-                self.controller.wait(sleep_interval)
+            wait_duration = sleep_interval if sleep_interval else 1
+            self.controller.wait(wait_duration)
             
             current_time = self.controller.get_current_time()
                 
@@ -466,7 +470,7 @@ class Test:
 
 
 if __name__ == "__main__":
-    test = Test(config_file="")
+    test = Test(config_file="config_template_simcdl.yaml")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", help="reset point values to first stage", action='store_true')

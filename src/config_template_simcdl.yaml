@@ -4,24 +4,24 @@ device:
   type: simulation
   
   # Path to the Modelica model file (.mo)
-  model_filepath:
+  model_filepath: files/testscript_VAVRH_20250129_fmu.mo
   
-  # Modelica path to the model (e.g., 'Buildings.Controls.OBC.ASHRAE.G36...')
-  model_mopath:
+  # Modelica path to the model within the .mo file
+  model_mopath: testscript_VAVRH_20250129_fmu
   
   # Whether to compile the FMU from the .mo file (true/false)
   # Set to false if FMU already exists
-  compile_fmu:
+  compile_fmu: true
   
   # Path to the point mapping CSV file (relative to ./files/)
   # This maps test variable names to CDL paths
-  point_map:
+  point_map: 'files/2025-08-26 - VAVRH Point Mapping File - CDL[35].csv'
   
   # Path to the compiled FMU file (optional, auto-generated from model_filepath if not specified)
-  fmu_filepath:
+  fmu_filepath: testscript_VAVRH_20250129_fmu.fmu
 
 test:
-  test_script:
-  input_points_header:
-  conditions_header:
-  output_points_header:
+  test_script: '2025-08-26 - VAVRH Test Script Draft 14.xlsx'
+  input_points_header: "BACnet Inputs"
+  conditions_header: "Conditions for Evaluation of Test Step"
+  output_points_header: "BACnet Expected Outputs"
