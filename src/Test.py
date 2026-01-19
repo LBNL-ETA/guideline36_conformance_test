@@ -13,10 +13,28 @@ class Test:
     def __init__(self, config_file, device_init=True):
         # Set paths relative to this file's location
         self.SRC_FOLDER = Path(__file__).resolve().parent
-        self.FILE_FOLDER = self.SRC_FOLDER.parent / "files"
+        self.PROJECT_ROOT = self.SRC_FOLDER.parent
+        
+        # Config file can be absolute or relative to project root
+        config_path = Path(config_file)
+        if not config_path.is_absolute():
+            config_path = self.PROJECT_ROOT / config_file
+        
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+        
         # Open configuration
-        with open(self.SRC_FOLDER / config_file, "r") as fp:
+        with open(config_path, "r") as fp:
             self.config = yaml.safe_load(fp)
+        
+        # Get test type from config (required)
+        if 'test_type' not in self.config:
+            raise ValueError(f"Config file must specify 'test_type' field. Config: {config_path}")
+        
+        self.test_type = self.config['test_type']
+        self.test_base_dir = self.PROJECT_ROOT / "conformance_tests" / self.test_type
+        self.test_scripts_dir = self.test_base_dir / "test_scripts"
+        self.results_dir = self.test_base_dir / "results"
         # Initiate Test Script
         self.test_config = self.config["test"]
         self.test_file = self.test_config["test_script"]
@@ -42,7 +60,7 @@ class Test:
         self.init_test_sequence(filename=self.test_file, ip_header=self.input_points_header, cond_header=self.conditions_header, op_header=self.output_points_header, point_prop=self.point_properties)
 
     def init_test_sequence(self, filename, ip_header, cond_header, op_header, point_prop):
-        self.test_df = pd.read_excel(self.FILE_FOLDER / filename, index_col=0, header=None)
+        self.test_df = pd.read_excel(self.test_scripts_dir / filename, index_col=0, header=None)
         self.ip = self.format_excel_df(df=self.test_df.loc[ip_header:cond_header].iloc[1:-1], point_prop=point_prop)
         self.cond = self.format_excel_df(df=self.test_df.loc[cond_header:op_header].iloc[1:-1], is_cond_df=True, point_prop=point_prop)
         self.op = self.format_excel_df(df=self.test_df.loc[op_header:].iloc[1:], point_prop=point_prop)
@@ -97,7 +115,11 @@ class Test:
         print()
 
         if to_csv:
-            file = self.FILE_FOLDER / f"{name}_values.csv"
+            # Create output directory if it doesn't exist
+            output_dir = self.results_dir / f"run_{name}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            file = output_dir / f"{name}_values.csv"
             if not file.exists():
                 fp = open(file, "w")
                 column_names = 'time,' + ','.join(list(points.keys())) + '\n'
@@ -110,7 +132,11 @@ class Test:
 
     def save_test_times(self, to_csv=False, name=None, step=None, st=None, et=None, duration=None):
         if to_csv:
-            file = self.FILE_FOLDER / f"{name}_test_times.csv"
+            # Create output directory if it doesn't exist
+            output_dir = self.results_dir / f"run_{name}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            file = output_dir / f"{name}_test_times.csv"
             if not file.exists():
                 fp = open(file, "w")
                 column_names = 'step,start_time,end_time,duration\n'
@@ -470,7 +496,8 @@ class Test:
 
 
 if __name__ == "__main__":
-    test = Test(config_file="config_template_simcdl.yaml")
+    # Config file must specify test_type field
+    test = Test(config_file="conformance_tests/vav_rh/config/config_template_simcdl.yaml")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", help="reset point values to first stage", action='store_true')

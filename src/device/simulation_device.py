@@ -68,13 +68,28 @@ class SimulationDevice(BaseDevice):
         device_config
             Device configuration
         """
-        self.model_filepath = device_config["model_filepath"]
+        # Resolve paths relative to project root
+        project_root = Path(__file__).resolve().parent.parent.parent
+        
+        self.model_filepath = project_root / device_config["model_filepath"]
         self.model_mopath = device_config["model_mopath"]
         self.compile_fmu = device_config["compile_fmu"]
-        self.fmu_filepath = self.model_filepath.replace('.mo', '.fmu')
+        
+        # Determine FMU filepath
+        if "fmu_filepath" in device_config and device_config["fmu_filepath"]:
+            self.fmu_filepath = project_root / device_config["fmu_filepath"]
+        else:
+            self.fmu_filepath = self.model_filepath.with_suffix('.fmu')
+        
+        # Determine build directory (simulation_files/build/)
+        self.build_dir = self.model_filepath.parent / "build"
+        self.build_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Point map path
+        self.point_map_path = project_root / device_config['point_map']
         
         # Initialize point mapping
-        self._load_point_mapping(device_config['point_map'])
+        self._load_point_mapping(self.point_map_path)
         
         # Initialize input and parameter dictionaries
         self.u = {}
@@ -296,7 +311,7 @@ class SimulationDevice(BaseDevice):
         """
         if save_point_properties:
             # Save point properties for debugging (in project root)
-            debug_csv_path = Path(__file__).resolve().parent.parent / 'point_properties.csv'
+            debug_csv_path = self.point_map_path.parent / 'point_properties.csv'
             self.get_point_properties().to_csv(debug_csv_path)
         
         # Compile FMU if requested
@@ -306,9 +321,10 @@ class SimulationDevice(BaseDevice):
         
         # Initialize simulation wrapper
         self.sim = Simcdl(
-            self.device_config["fmu_filepath"],
+            str(self.fmu_filepath),  # Simcdl expects string path
             output_names=self.output_names,
-            parameter_names=self.parameter_names
+            parameter_names=self.parameter_names,
+            work_dir=str(self.build_dir)  # Direct logs and results to build dir
         )
         
         # Initial simulation setup
@@ -340,8 +356,9 @@ class SimulationDevice(BaseDevice):
         parameters
             Parameter values to set during compilation
         """
-        # Write .mos script for OpenModelica
-        with open('compile_fmu.mos', 'w') as f:
+        # Write .mos script to build directory using absolute paths
+        mos_script = self.build_dir / 'compile_fmu.mos'
+        with open(mos_script, 'w') as f:
             f.write('installPackage(Modelica, "4.0.0", exactMatch=false);\n')
             f.write('installPackage(Buildings, "11.0.0", exactMatch=true);\n')
             # Uncomment to load Buildings from local:
@@ -355,17 +372,23 @@ class SimulationDevice(BaseDevice):
                 f.write(f'setParameterValue({model_name}, {par_name}, {par_value});\n')
                 f.write('getErrorString();\n')
             
+            # Build FMU (process runs from build_dir via cwd parameter)
             f.write(f'buildModelFMU({model_name}, version = "2.0", fmuType="cs");\n')
             f.write('getErrorString();')
         
-        # Execute OpenModelica compilation
-        process = subprocess.Popen(['omc', 'compile_fmu.mos'])
+        # Execute OpenModelica compilation with absolute path to script
+        print(f"Compiling FMU, artifacts will be in: {self.build_dir}")
+        # Run omc with cwd=build_dir so log file goes there
+        process = subprocess.Popen(['omc', str(mos_script)], cwd=str(self.build_dir))
         
         # Poll until completion
         while process.poll() is None:
             time.sleep(10)
             print(f'Waiting for OpenModelica to finish compiling {fmu_path}. Checking again in 10 seconds...')
         
+        print(f'OpenModelica finished compiling.')
+        
+        # Move compiled FMU to expected location (simulation_files/ directory)
         print(f'OpenModelica finished compiling {fmu_path}.')
 
     #todo: unit conversion to and from device units. do we need both directions during the test. dimensional ratio.
