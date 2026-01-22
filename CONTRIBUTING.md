@@ -13,7 +13,6 @@ keep track of these changes to share with the broader G36 testing community.
 ### Issue Tagging
 If an issue is related to one of the following areas and not necessarily our core code, start the issue title:
 
-- `[Test Script]`: - an issue with the Test Script, including formatting, parsing, etc.
 - `[CDL Logic]`:  - an issue involving the Modelica Buildings library implementation of G36 
 - `[Device Model]` - an issue describing needed modification of the model being compiled into the device class (e.g., adjusting gains)
 
