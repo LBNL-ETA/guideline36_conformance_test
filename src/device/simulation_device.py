@@ -6,7 +6,7 @@ models compiled to FMU format using OpenModelica.
 """
 
 from src.device.base_device import BaseDevice, Point
-from src.Simcdl import Simcdl
+from src.device.Simcdl import Simcdl
 import subprocess
 import time
 import numpy as np
