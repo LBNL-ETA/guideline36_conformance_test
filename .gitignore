@@ -1,4 +1,6 @@
-config.yaml
+# Active configuration files (created from templates)
+config/global_config.yaml
+conformance_tests/*/config/config.yaml
 
 # Do not commit the Test Script Excel files
 *.xlsx

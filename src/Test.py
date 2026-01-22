@@ -1,4 +1,3 @@
-import yaml
 import pandas as pd
 import time
 import argparse
@@ -7,31 +6,48 @@ import os
 import math
 from pathlib import Path
 from loguru import logger
+from src.utils.config_loader import load_config
 
 
 class Test:
-    def __init__(self, config_file, device_init=True):
+    def __init__(
+        self,
+        global_config_path: str = None,
+        test_config_path: str = None,
+        device_init: bool = True
+    ):
+        """
+        Initialize Test with configuration.
+        
+        Parameters
+        ----------
+        global_config_path : str, optional
+            Path to global config file. Can be absolute or relative to project root.
+            If None, defaults to config/global_config.yaml
+        test_config_path : str, optional
+            Path to test-specific config file. Can be absolute or relative to project root.
+            If None, uses test_type from global config to determine path
+        device_init : bool, optional
+            Whether to initialize device. Default is True.
+        """
         # Set paths relative to this file's location
         self.SRC_FOLDER = Path(__file__).resolve().parent
         self.PROJECT_ROOT = self.SRC_FOLDER.parent
         
-        # Config file can be absolute or relative to project root
-        config_path = Path(config_file)
-        if not config_path.is_absolute():
-            config_path = self.PROJECT_ROOT / config_file
+        # Convert string paths to Path objects if provided
+        global_config_path_obj = Path(global_config_path) if global_config_path else None
+        test_config_path_obj = Path(test_config_path) if test_config_path else None
         
-        if not config_path.exists():
-            raise FileNotFoundError(f"Config file not found: {config_path}")
+        # Load configuration from global and test-specific files
+        self.config = load_config(
+            self.PROJECT_ROOT,
+            global_config_path=global_config_path_obj,
+            test_config_path=test_config_path_obj
+        )
         
-        # Open configuration
-        with open(config_path, "r") as fp:
-            self.config = yaml.safe_load(fp)
-        
-        # Get test type from config (required)
-        if 'test_type' not in self.config:
-            raise ValueError(f"Config file must specify 'test_type' field. Config: {config_path}")
-        
+        # Extract config sections
         self.test_type = self.config['test_type']
+        self.device_type = self.config['device_type']
         self.test_base_dir = self.PROJECT_ROOT / "conformance_tests" / self.test_type
         self.test_scripts_dir = self.test_base_dir / "test_scripts"
         self.results_dir = self.test_base_dir / "results"
@@ -496,16 +512,34 @@ class Test:
 
 
 if __name__ == "__main__":
-    # Config file must specify test_type field
-    test = Test(config_file="conformance_tests/vav_rh/config/config_template_simcdl.yaml")
-
-    parser = argparse.ArgumentParser()
+    # Parse command-line arguments first
+    parser = argparse.ArgumentParser(
+        description="Run ASHRAE Guideline 36 conformance tests"
+    )
+    parser.add_argument(
+        "--global-config",
+        help="path to global config file (default: config/global_config.yaml)",
+        default=None
+    )
+    parser.add_argument(
+        "--test-config",
+        help="path to test-specific config file (default: determined from test_type)",
+        default=None
+    )
     parser.add_argument("--reset", help="reset point values to first stage", action='store_true')
     parser.add_argument("--output", help="print point values", action='store_true')
     parser.add_argument("--csv", help="save outputs to csv", action='store_true')
     parser.add_argument("--name", help="test name", default=time.strftime("%Y%m%dT%H%M%S"))
 
     args = parser.parse_args()
+    
+    # Initialize test with config files
+    test = Test(
+        global_config_path=args.global_config,
+        test_config_path=args.test_config
+    )
+    
+    # Extract CLI arguments
     reset = args.reset
     output = args.output
     to_csv = args.csv
