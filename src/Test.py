@@ -254,7 +254,7 @@ class Test:
             seconds_since_start = int(current_time - st)
             #iterate over all StateOperation instances and call set_value
             for obj in Ramp.instances:
-                if obj.ramp_step:
+                if obj.params['ramp_step']:
                     obj.set_value(seconds_since_start)                    
 
             for obj in Periodic.instances:
@@ -420,8 +420,11 @@ class Test:
                 var_name = names_df.name_in_test.values[0]
                 var_to_check = names_df.index.values[0]
                 return self.controller.get_current_variable_value(var_to_check)
+                #return self.controller.get_current_variable_value(var_name)
             else:
                 try:
+                    print('Currently in the first try block')
+                    print(f'The expression is {expression}')
                     float_value = float(expression)
                 except Exception as e:
                     print("WARNING: cannot find variable to check %s"%expression)
@@ -620,11 +623,11 @@ class InterpolateOperation(StateLessOperation):
         interpolate_params_dict['y0'] = self.test.evaluate_expression(expression=string_parameters[3])        
         interpolate_params_dict['y1'] = self.test.evaluate_expression(expression=string_parameters[4]) 
         if len(string_parameters) > 5:
-            interpolate_params_dict['min_out'] = self.evaluate_expression(expression=string_parameters[5]) 
+            interpolate_params_dict['min_out'] = self.test.evaluate_expression(expression=string_parameters[5]) 
         else:
             interpolate_params_dict['min_out'] = None        
         if len(string_parameters) > 6:
-            interpolate_params_dict['max_out'] = self.evaluate_expression(expression=string_parameters[6]) 
+            interpolate_params_dict['max_out'] = self.test.evaluate_expression(expression=string_parameters[6]) 
         else:
             interpolate_params_dict['max_out'] = None
         print(interpolate_params_dict)
