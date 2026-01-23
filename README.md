@@ -45,19 +45,40 @@ Install [Docker](https://www.docker.com/). Then, the following.
     - Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
 
 ### Run a Test
-1. Configure the test:
 
-    - Save test script to `files/` and save point map to `files/simcdl/`.
+1. Set up global configuration:
 
-    - Copy `src/config_template_simcdl.yaml` to `src/config.yaml` (or custom name) and fill in the necessary configuration information.
+    - Copy `config/global_config_template.yaml` to `config/global_config.yaml` and fill in:
+        - `test_type`: which conformance test to run (e.g., `vav_rh`)
+        - `device_type`: `simulation` or `bacnet`
+        - `test_runner` options: `save_csv`, `print_output`, `reset_points`
 
-    - Configure `src/Test.py` function `__main__` to use `src/config.yaml` (or custom name), upon instantiation of `Test`.
+2. Configure the specific test:
 
-2. Start the test: 
+    - Copy `conformance_tests/{test_type}/config/config_template.yaml` to `config.yaml` in the same directory and fill in:
+        - Device settings for both simulation and bacnet
+        - Test script filename
+        - Point mapping file path
+
+3. Prepare test files:
+
+    - Save test script (Excel file) to `conformance_tests/{test_type}/test_scripts/`
+    - Save point mapping file (CSV) to `conformance_tests/{test_type}/config/`
+    - For simulation: place Modelica (.mo) or FMU files in `conformance_tests/{test_type}/simulation_files/`
+
+4. Run the test:
 
     ```
     $ python src/Test.py
+    
+    # Optional command-line arguments:
+    # --csv                  Save outputs to CSV
+    # --name <test_name>     Specify output filename prefix
+    # --reset                Reset points before test
+    # --output               Print current values without running
     ```
+
+Results will be saved to `conformance_tests/{test_type}/results/`
 
 ## Copyright Notice
 
