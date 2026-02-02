@@ -31,11 +31,12 @@ device_type: simulation
 # -----------------------------------------------------------------------------
 test_runner:
   # Test run name (used for output file prefixes)
+  # Also used to create result subdirectory (e.g., conformance_tests/{test_type}/results/{name}/)
   # If null, defaults to timestamp (YYYYMMDDTHHmmss)
   name: null
   
   # Save test outputs and timing data to CSV files
-  # Files will be saved to: conformance_tests/{test_type}/results/
+  # Files will be saved to: conformance_tests/{test_type}/results/{name}
   # Options: true, false
   save_csv: false
   
