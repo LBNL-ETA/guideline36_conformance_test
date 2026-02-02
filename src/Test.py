@@ -526,10 +526,10 @@ if __name__ == "__main__":
         help="path to test-specific config file (default: determined from test_type)",
         default=None
     )
-    parser.add_argument("--reset", help="reset point values to first stage", action='store_true')
-    parser.add_argument("--output", help="print point values", action='store_true')
-    parser.add_argument("--csv", help="save outputs to csv", action='store_true')
-    parser.add_argument("--name", help="test name", default=time.strftime("%Y%m%dT%H%M%S"))
+    parser.add_argument("--reset", help="reset point values to first stage (overrides config)", action='store_true')
+    parser.add_argument("--output", help="print point values without running test (overrides config)", action='store_true')
+    parser.add_argument("--csv", help="save outputs to csv (overrides config)", action='store_true')
+    parser.add_argument("--name", help="test run name (overrides config)", default=None)
 
     args = parser.parse_args()
     
@@ -539,11 +539,17 @@ if __name__ == "__main__":
         test_config_path=args.test_config
     )
     
-    # Extract CLI arguments
-    reset = args.reset
-    output = args.output
-    to_csv = args.csv
-    name = args.name
+    # Get test_runner config with defaults
+    test_runner_config = test.config.get('test_runner', {})
+    
+    # Extract CLI arguments with fallback to config values
+    # All boolean flags use: CLI flag OR config value OR False
+    reset = args.reset or test_runner_config.get('reset_points', False)
+    output = args.output or test_runner_config.get('print_output', False)
+    to_csv = args.csv or test_runner_config.get('save_csv', False)
+    
+    # Name uses: CLI value OR config value OR timestamp
+    name = args.name or test_runner_config.get('name') or time.strftime("%Y%m%dT%H%M%S")
 
     print(to_csv)
     print(name)
