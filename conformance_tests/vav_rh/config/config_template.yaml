@@ -38,7 +38,7 @@ device:
     
     # Path to compiled FMU file (optional, auto-generated if not specified)
     # Build artifacts will be written to simulation_files/build/
-    fmu_filepath: conformance_tests/vav_rh/simulation_files/testscript_VAVRH_20250129_fmu.fmu
+    fmu_filepath: conformance_tests/vav_rh/simulation_files/build/testscript_VAVRH_20250129_fmu.fmu
     
     # Point mapping file - maps test variable names to CDL paths
     # CSV format: header on row 4, columns include 'Variable Name', 'CDL Block', 'CDL Name', etc.
