@@ -191,7 +191,7 @@ class BacnetDevice(BaseDevice):
         """
         try:
             self.device[point_name] = value
-            self.update_point_value(point_name, value)
+            self._cache_point_value(point_name, value)
         except Exception as e:
             print(f"Error setting {point_name}: {e}")
 
@@ -207,7 +207,7 @@ class BacnetDevice(BaseDevice):
         for point_name, value in point_value_dict.items():
             try:
                 self.device[point_name] = value
-                self.update_point_value(point_name, value)
+                self._cache_point_value(point_name, value)
             except Exception as e:
                 print(f"Error setting {point_name}: {e}")
 
@@ -226,7 +226,7 @@ class BacnetDevice(BaseDevice):
         """
         try:
             value = self.device[variable_name].value
-            self.update_point_value(variable_name, value)
+            self._cache_point_value(variable_name, value)
             return value
         except Exception as e:
             print(f"Error reading {variable_name}: {e}")
@@ -269,7 +269,7 @@ class BacnetDevice(BaseDevice):
         for point_name in self.points:
             if point_name in device_points:
                 value = device_points[point_name]
-                self.update_point_value(point_name, value)
+                self._cache_point_value(point_name, value)
                 result[point_name] = value
         
         return result

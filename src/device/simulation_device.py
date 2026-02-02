@@ -218,7 +218,7 @@ class SimulationDevice(BaseDevice):
             self.u[point_name] = converted_value
         
         # Update cached value
-        self.update_point_value(point_name, converted_value)
+        self._cache_point_value(point_name, converted_value)
 
     def get_current_variable_value(self, variable_name):
         """
@@ -245,7 +245,7 @@ class SimulationDevice(BaseDevice):
         _, _, data = self.sim.get_results([variable_name], start_time, final_time)
         
         value = data[variable_name][-1]
-        self.update_point_value(variable_name, value)
+        self._cache_point_value(variable_name, value)
         
         return value
 

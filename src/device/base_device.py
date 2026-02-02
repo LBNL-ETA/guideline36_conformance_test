@@ -109,7 +109,12 @@ class BaseDevice(ABC):
     @abstractmethod
     def set_single_point(self, point_name, value):
         """
-        Set the value of a single point.
+        Set the value of a single point on the device.
+        
+        Implementations should:
+        1. Convert value to device units if needed
+        2. Send the value to the device (FMU/BACnet/etc.)
+        3. Call self._cache_point_value() to cache the new value
         
         Parameters
         ----------
@@ -123,7 +128,12 @@ class BaseDevice(ABC):
     @abstractmethod
     def get_current_variable_value(self, variable_name):
         """
-        Read the current value of a variable.
+        Read the current value of a variable from the device.
+        
+        Implementations should:
+        1. Query the device for the current value
+        2. Call self._cache_point_value() to cache the value
+        3. Return the value
         
         Parameters
         ----------
@@ -208,9 +218,17 @@ class BaseDevice(ABC):
                 return point
         return None
     
-    def update_point_value(self, point_name, value):
+    def _cache_point_value(self, point_name, value):
         """
-        Update the cached value in a Point object.
+        Update the cached value in a Point object
+        
+        The intent of this internal method is to keep the Point.value attribute
+        in sync with the actual device state. It should be called in conjunction with
+        the set_single_point() and get_current_variable_value() methods.
+
+        The idea is that the current value of the point is cached to limit device I/O 
+        operations and provide quick access to the last known value if being used 
+        multiple times in the same test step.
         
         Parameters
         ----------
