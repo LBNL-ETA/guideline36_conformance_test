@@ -266,7 +266,7 @@ class BaseDevice(ABC):
             result[point_name] = self.get_current_variable_value(point_name)
         return result
     
-    def set_values(self, point_value_dict):
+    def set_multiple_points(self, point_value_dict):
         """
         Set multiple point values.
         

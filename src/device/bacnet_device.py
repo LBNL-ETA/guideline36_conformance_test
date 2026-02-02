@@ -195,7 +195,7 @@ class BacnetDevice(BaseDevice):
         except Exception as e:
             print(f"Error setting {point_name}: {e}")
 
-    def set_values(self, point_value_dict):
+    def set_multiple_points(self, point_value_dict):
         """
         Set multiple BACnet point values.
         
