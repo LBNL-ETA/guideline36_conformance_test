@@ -95,7 +95,7 @@ class SimulationDevice(BaseDevice):
         self.u = {}
         self.parameters = {}
         
-        # Initialize the FMU simulation
+        # Initialize the FMU simulation (compiles the simulation, but does not start it)
         self._initialize_sim()
 
     def _load_point_mapping(self, filepath_pointmap):
@@ -287,6 +287,9 @@ class SimulationDevice(BaseDevice):
         """
         Advance simulation by one step.
         
+        On the first call, this will initialize the simulation with current
+        input values before advancing. 
+        
         The test script loop handles calling this repeatedly until conditions are met.
         Duration parameter is ignored for simulation devices (step size is fixed).
         
@@ -298,18 +301,25 @@ class SimulationDevice(BaseDevice):
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
         
-        # Just advance one step - the test loop will call this repeatedly
+        # On first call, initialize simulation state with current inputs
+        if not self._simulation_started:
+            self._start_simulation()
+        
+        # Advance one step - the test loop will call this repeatedly
         self.advance_sim()
 
     def _initialize_sim(self, save_point_properties=True):
         """
         Initialize the FMU simulation (private method).
         
-        Compiles FMU if needed, loads it, and performs initial advancement.
+        Compiles FMU if needed and loads it into Simcdl wrapper.
+        Does NOT start the simulation - that happens in start_simulation()
+        after initial inputs are set.
+        
         Called automatically during init_device().
         """
         if save_point_properties:
-            # Save point properties for debugging (in project root)
+            # Save point properties for debugging
             debug_csv_path = self.point_map_path.parent / 'point_properties.csv'
             self.get_point_properties().to_csv(debug_csv_path)
         
@@ -318,7 +328,7 @@ class SimulationDevice(BaseDevice):
             self._compile_fmu(self.model_filepath, self.model_mopath, 
                             self.fmu_filepath, self.parameters)
         
-        # Initialize simulation wrapper
+        # Initialize simulation wrapper (but don't advance yet)
         self.sim = Simcdl(
             str(self.fmu_filepath),  # Simcdl expects string path
             output_names=self.output_names,
@@ -326,10 +336,32 @@ class SimulationDevice(BaseDevice):
             work_dir=str(self.build_dir)  # Direct logs and results to build dir
         )
         
-        # Initial simulation setup
+        # Mark that simulation needs to be started
+        self._simulation_started = False
+    
+    def _start_simulation(self):
+        """
+        Start the simulation with current input values (private method).
+        
+        This is called automatically on the first wait() call. It advances
+        the simulation to establish initial state based on the input values
+        from the intial step in the test script.
+
+        """
+        if self._simulation_started:
+            return  # Already started
+        
+        print("Starting simulation with initial input values...")
+        
+        # Start with zero timestep to initialize state with current inputs
         self.sim.set_step(0)
         self.advance_sim()
+        
+        # Set normal timestep for test execution
         self.sim.set_step(10)
+        
+        self._simulation_started = True
+        print("Simulation initialized successfully")
 
     def advance_sim(self):
         """
