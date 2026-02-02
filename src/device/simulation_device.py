@@ -110,12 +110,11 @@ class SimulationDevice(BaseDevice):
         # Read point map CSV (skip first 3 header rows, use 'Variable Name' as index)
         df_pointmap = pd.read_csv(filepath_pointmap, header=3, index_col='Variable Name')
         
-        # CDL Model Class-Instance Map
-        class_map = {
-            'Buildings.Controls.OBC.ASHRAE.G36.TerminalUnits.Reheat.Controller': 'con',
-            'Buildings.Controls.OBC.ASHRAE.G36.ThermalZones.Setpoints': 'set',
-            'Buildings.Controls.OBC.ASHRAE.G36.ThermalZones.Alarms': 'zonAla'
-        }
+        # Get CDL Model Class-Instance Map from device config
+        # This maps full CDL class names to the instance names used in the .mo file
+        if 'cdl_class_instance_map' not in self.device_config:
+            raise ValueError("device_config must include 'cdl_class_instance_map' to map CDL classes to model instance names")
+        class_map = self.device_config['cdl_class_instance_map']
         
         # Track output and parameter names for FMU initialization
         self.output_names = []

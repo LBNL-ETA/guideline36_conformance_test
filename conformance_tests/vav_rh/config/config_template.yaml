@@ -45,6 +45,14 @@ device:
     # Can be absolute or relative to project root
     point_map: conformance_tests/vav_rh/config/2025-08-26 - VAVRH Point Mapping File - CDL[35].csv
     
+    # CDL Class to Instance Name Mapping
+    # Maps full CDL class names to the instance names used in your .mo file
+    # These instance names should match how the CDL blocks are instantiated in the model
+    cdl_class_instance_map:
+      Buildings.Controls.OBC.ASHRAE.G36.TerminalUnits.Reheat.Controller: con
+      Buildings.Controls.OBC.ASHRAE.G36.ThermalZones.Setpoints: set
+      Buildings.Controls.OBC.ASHRAE.G36.ThermalZones.Alarms: zonAla
+    
 
   # ---------------------------------------------------------------------------
   # BACnet Device Configuration (Physical or Virtual Controller)
