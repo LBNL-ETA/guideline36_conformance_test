@@ -62,7 +62,7 @@ class Test:
         device_type = self.device_config['type']
         
         # Import and instantiate appropriate device class
-        if device_type in ['simcdl', 'simulation']:
+        if device_type == 'simulation':
             from src.device.simulation_device import SimulationDevice
             self.controller = SimulationDevice(device_config=self.device_config)
         elif device_type == 'bacnet':
@@ -70,7 +70,7 @@ class Test:
             self.controller = BacnetDevice(device_config=self.device_config)
         else:
             raise ValueError(f'In configuration file, device type "{device_type}" is unknown. '
-                           f'Valid types: "simulation", "simcdl", "bacnet"')
+                           f'Valid types: "simulation", "bacnet"')
         # Initiate Test Sequence with Test and Device
         self.point_properties = self.controller.get_point_properties()
         self.init_test_sequence(filename=self.test_file, ip_header=self.input_points_header, cond_header=self.conditions_header, op_header=self.output_points_header, point_prop=self.point_properties)
@@ -380,7 +380,7 @@ class Test:
             
             # Print progress periodically (every minute for BACnet, every step for simulation)
             device_type = self.controller.get_type()
-            if device_type in ['simcdl', 'simulation']:
+            if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
                 if seconds_since_start%60 == 0:
