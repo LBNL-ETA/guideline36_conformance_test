@@ -9,40 +9,13 @@ This software has been developed to conduct standardized, repeatable and manufac
 
 ## Getting Started for a CDL Simulation Device
 
-### Using Docker Compose
-Install [Docker](https://www.docker.com/). Then, the following.
+[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation`. `exit` to exit.
 
-1. Build the ``simulation`` image (if first time) and run container in detached mode: 
-
-    ```
-    $ docker compose up simulation -d
-    ```
-
-2. Attach to the container interactively in the right working directory: 
-
-    ```
-    $ docker compose exec -w /mnt/shared simulation bash
-    ```
-
-3. Run a test(s) as described in the section "Run a Test."
-
-4. Exit the container: ``ctrl+d``
-
-5. Stop and remove the container: 
-
-    ```
-    $ docker compose down
-    ```
-
-### If Not Docker Compose or Want Customized Environment
-
-1. Install Python3.  Recommend using Anaconda (easier installation of pyfmi).
-
-2. Install Python packages listed in ``requirements/simulation.txt``.
-
-3. Install [OpenModelica](https://openmodelica.org/) v1.25.0.
+On Windows, you have to manually install [OpenModelica](https://openmodelica.org/). The compiler executable, `omc`, will be [available](./Scripts/om/setup.bat) on [pixi windows simulation environment activation](./pyproject.toml).
 
     - Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
+
+Also, see [docker documentation](./docker/readme.md) for a suggestion on how to use docker for development.
 
 ### Run a Test
 1. Configure the test:
