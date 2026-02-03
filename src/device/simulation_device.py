@@ -230,18 +230,15 @@ class SimulationDevice(BaseDevice):
             
         Returns
         -------
-        Current value from FMU
+        Current value from FMU, or None if simulation hasn't been started yet
         """
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
         
-        # Ensure simulation is started before trying to read values
-        # This handles cases where values are read before first wait() call
-
-        # todo maybe handle this in test script with an intialization test step?
-
+        # Return None if simulation not started - no values available yet
         if not self._simulation_started:
-            self._start_simulation()
+            self._cache_point_value(variable_name, None)
+            return None
         
         _, _, current_time = self.sim.get_current_time()
         _, _, step = self.sim.get_step()

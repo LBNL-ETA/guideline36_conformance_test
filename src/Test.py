@@ -398,6 +398,9 @@ class Test:
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
+        # TODO: Handle initialization step more explicitly in the test loop
+        if actual_value is None:  # For simulation device, all varables are None before first wait() call
+            return False
         if operator == ">" and actual_value > expected_value:
             return True
         elif operator == ">=" and actual_value >= expected_value:
