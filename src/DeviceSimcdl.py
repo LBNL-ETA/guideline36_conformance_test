@@ -177,8 +177,16 @@ class Points(object):
                     self.parameter_names.append(par_name)
                 # Output points
                 elif (causality == 'Output') or (causality == 'State'):
-                    output_name = self.class_map[self.df_pointmap.loc[point]['CDL Block']] + '.' + \
-                                  self.df_pointmap.loc[point]['CDL Name']
+                    cdl_block_name = self.df_pointmap.loc[point]['CDL Block']
+                    try:
+                        if np.isnan(cdl_block_name):
+                            output_name = self.df_pointmap.loc[point]['CDL Name']
+                        else:
+                            output_name = self.class_map[cdl_block_name] + '.' + \
+                                        self.df_pointmap.loc[point]['CDL Name']
+                    except TypeError:
+                        output_name = self.class_map[cdl_block_name] + '.' + \
+                                    self.df_pointmap.loc[point]['CDL Name']                        
                     self.df_pointmap.loc[point,'CDL Path'] = output_name
                     self.output_names.append(output_name)
 
