@@ -235,6 +235,14 @@ class SimulationDevice(BaseDevice):
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
         
+        # Ensure simulation is started before trying to read values
+        # This handles cases where values are read before first wait() call
+
+        # todo maybe handle this in test script with an intialization test step?
+
+        if not self._simulation_started:
+            self._start_simulation()
+        
         _, _, current_time = self.sim.get_current_time()
         _, _, step = self.sim.get_step()
         
