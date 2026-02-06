@@ -130,10 +130,16 @@ class SimulationDevice(BaseDevice):
             if causality == 'Input':
                 cdl_path = cdl_name
             elif causality == 'Parameter':
-                cdl_path = f"{cdl_block}.{cdl_name}"
+                if cdl_block == '.':
+                    cdl_path = f"{cdl_name}"
+                else:
+                    cdl_path = f"{cdl_block}.{cdl_name}"
                 self.parameter_names.append(cdl_path)
             elif causality in ['Output', 'State']:
-                cdl_path = f"{cdl_block}.{cdl_name}"
+                if cdl_block == '.':
+                    cdl_path = f"{cdl_name}"
+                else:
+                    cdl_path = f"{cdl_block}.{cdl_name}"
                 self.output_names.append(cdl_path)
             else:
                 continue
