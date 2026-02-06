@@ -1,4 +1,13 @@
-config.yaml
+# Active configuration files (created from templates)
+config/global_config.yaml
+conformance_tests/*/config/config.yaml
+
+# Do not commit the Test Script Excel files
+*.xlsx
+*.xlxs
+
+# Do not commit point mapping CSV files
+*.csv
 
 # OpenModelica FMU Compilation Outputs
 index.html
@@ -8,6 +17,10 @@ index.html
 *_log.txt
 *.mat
 *.mos
+
+# Test results 
+conformance_tests/*/results/run_*/
+!conformance_tests/*/results/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

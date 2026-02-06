@@ -62,7 +62,7 @@ class Simcdl(object):
 
     '''
 
-    def __init__(self, fmupath, name=None, output_names=None, parameter_names=None):
+    def __init__(self, fmupath, name=None, output_names=None, parameter_names=None, work_dir=None):
         '''Constructor.
 
         Parameters
@@ -78,10 +78,14 @@ class Simcdl(object):
         parameter_names : list of str, optional
             Names specific parameters of FMU.
             Default is None.
+        work_dir : str, optional
+            Directory for log and result files.
+            Default is None (current directory).
 
         '''
 
         self.name = name
+        self.work_dir = work_dir
         # Set test case fmu path and check if path exists and throw execption
         self.fmupath = fmupath
         if not os.path.exists(fmupath) or not os.path.isfile(fmupath):
@@ -94,7 +98,14 @@ class Simcdl(object):
         fmt = '%(asctime)s UTC\t%(name)-20s%(levelname)s\t%(message)s'
         datefmt = '%m/%d/%Y %I:%M:%S %p'
         formatter = logging.Formatter(fmt,datefmt)
-        logging.basicConfig(filename='{0}.log'.format(name), filemode='w', level=10, format=fmt, datefmt=datefmt)
+        
+        # Set log file path
+        if work_dir:
+            log_path = os.path.join(work_dir, '{0}.log'.format(name))
+        else:
+            log_path = '{0}.log'.format(name)
+        
+        logging.basicConfig(filename=log_path, filemode='w', level=10, format=fmt, datefmt=datefmt)
         logger = logging.getLogger()
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(formatter)
@@ -115,6 +126,12 @@ class Simcdl(object):
         self.__initilize_data()
         # Set default fmu simulation options
         self.options = self.fmu.simulate_options()
+        # Set result file location if work_dir specified
+        if self.work_dir:
+            # Get the FMU model name from the path
+            fmu_name = os.path.splitext(os.path.basename(self.fmupath))[0]
+            result_file = os.path.join(self.work_dir, f"{fmu_name}_result.mat")
+            self.options['result_file_name'] = result_file
         #self.options['filter'] = self.output_names + self.input_names
         # Initialize test case
         self.initialize(0)
