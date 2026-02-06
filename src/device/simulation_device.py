@@ -302,7 +302,7 @@ class SimulationDevice(BaseDevice):
         
         # On first call, initialize simulation state with current inputs
         if not self._simulation_started:
-            self._start_simulation()
+            self._simulation_started = True
         
         # Advance one step - the test loop will call this repeatedly
         self.advance_sim()
@@ -338,30 +338,6 @@ class SimulationDevice(BaseDevice):
         # Mark that simulation needs to be started
         self._simulation_started = False
     
-    def _start_simulation(self):
-        """
-        Start the simulation with current input values (private method).
-        
-        This is called automatically on the first wait() call. It advances
-        the simulation to establish initial state based on the input values
-        from the intial step in the test script.
-
-        """
-        if self._simulation_started:
-            return  # Already started
-        
-        print("Starting simulation with initial input values...")
-        
-        # Start with zero timestep to initialize state with current inputs
-        self.sim.set_step(0)
-        self.advance_sim()
-        
-        # Set normal timestep for test execution
-        self.sim.set_step(10)
-        
-        self._simulation_started = True
-        print("Simulation initialized successfully")
-
     def advance_sim(self):
         """
         Advance the simulation by one timestep with current inputs.
