@@ -4,6 +4,7 @@ pandas
 numpy
 openpyxl
 pathlib
+loguru
 
 # HIL requirements
 BAC0==0.99.932

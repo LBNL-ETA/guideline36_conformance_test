@@ -1,40 +1,82 @@
-import yaml
 import pandas as pd
 import time
 import argparse
 import re
 import os
 import math
+from pathlib import Path
+from loguru import logger
+from src.utils.config_loader import load_config
+
 
 class Test:
-    def __init__(self, config_file, device_init=True):
-        self.FILE_FOLDER = "./files/"
-        self.SRC_FOLDER = "./src/"
-        # Open configuration
-        with open(self.SRC_FOLDER+config_file, "r") as fp:
-            self.config = yaml.safe_load(fp)
+    def __init__(
+        self,
+        global_config_path: str = None,
+        test_config_path: str = None,
+        device_init: bool = True
+    ):
+        """
+        Initialize Test with configuration.
+        
+        Parameters
+        ----------
+        global_config_path : str, optional
+            Path to global config file. Can be absolute or relative to project root.
+            If None, defaults to config/global_config.yaml
+        test_config_path : str, optional
+            Path to test-specific config file. Can be absolute or relative to project root.
+            If None, uses test_type from global config to determine path
+        device_init : bool, optional
+            Whether to initialize device. Default is True.
+        """
+        # Set paths relative to this file's location
+        self.SRC_FOLDER = Path(__file__).resolve().parent
+        self.PROJECT_ROOT = self.SRC_FOLDER.parent
+        
+        # Convert string paths to Path objects if provided
+        global_config_path_obj = Path(global_config_path) if global_config_path else None
+        test_config_path_obj = Path(test_config_path) if test_config_path else None
+        
+        # Load configuration from global and test-specific files
+        self.config = load_config(
+            self.PROJECT_ROOT,
+            global_config_path=global_config_path_obj,
+            test_config_path=test_config_path_obj
+        )
+        
+        # Extract config sections
+        self.test_type = self.config['test_type']
+        self.device_type = self.config['device_type']
+        self.test_base_dir = self.PROJECT_ROOT / "conformance_tests" / self.test_type
+        self.test_scripts_dir = self.test_base_dir / "test_scripts"
+        self.results_dir = self.test_base_dir / "results"
         # Initiate Test Script
         self.test_config = self.config["test"]
         self.test_file = self.test_config["test_script"]
-        self.input_points_header = self.test_config.get("input_points_header", "Simulation (controller) Inputs")
-        self.conditions_header = self.test_config.get("conditions_header", "Result Time")
-        self.output_points_header = self.test_config.get("output_points_header", "Expected Controller BACnet Outputs")
+        self.input_points_header = self.test_config.get("input_points_header", "BACnet Inputs")
+        self.conditions_header = self.test_config.get("conditions_header", "Conditions for Evaluation of Test Step")
+        self.output_points_header = self.test_config.get("output_points_header", "BACnet Expected Outputs")
         # Initiate Device
         self.device_config = self.config["device"]
-        if self.device_config['type'] == 'simcdl':
-            from src.DeviceSimcdl import DeviceSimcdl
-            self.controller = DeviceSimcdl(device_config=self.device_config)
-        elif self.device_config['type'] == 'bacnet':
-            from src.DeviceBacnet import DeviceBacnet
-            self.controller = DeviceBacnet(device_config=self.device_config)
+        device_type = self.device_config['type']
+        
+        # Import and instantiate appropriate device class
+        if device_type == 'simulation':
+            from src.device.simulation_device import SimulationDevice
+            self.controller = SimulationDevice(device_config=self.device_config)
+        elif device_type == 'bacnet':
+            from src.device.bacnet_device import BacnetDevice
+            self.controller = BacnetDevice(device_config=self.device_config)
         else:
-            raise ValueError('In configuration file, device type of {0} unknown.'.format(self.device_config['type']))
+            raise ValueError(f'In configuration file, device type "{device_type}" is unknown. '
+                           f'Valid types: "simulation", "bacnet"')
         # Initiate Test Sequence with Test and Device
         self.point_properties = self.controller.get_point_properties()
         self.init_test_sequence(filename=self.test_file, ip_header=self.input_points_header, cond_header=self.conditions_header, op_header=self.output_points_header, point_prop=self.point_properties)
 
     def init_test_sequence(self, filename, ip_header, cond_header, op_header, point_prop):
-        self.test_df = pd.read_excel(self.FILE_FOLDER+filename, index_col=0, header=None)
+        self.test_df = pd.read_excel(self.test_scripts_dir / filename, index_col=0, header=None)
         self.ip = self.format_excel_df(df=self.test_df.loc[ip_header:cond_header].iloc[1:-1], point_prop=point_prop)
         self.cond = self.format_excel_df(df=self.test_df.loc[cond_header:op_header].iloc[1:-1], is_cond_df=True, point_prop=point_prop)
         self.op = self.format_excel_df(df=self.test_df.loc[op_header:].iloc[1:], point_prop=point_prop)
@@ -89,24 +131,29 @@ class Test:
         print()
 
         if to_csv:
-            file = self.FILE_FOLDER + name + "_values.csv"
-            if not os.path.exists(file):
+            # Create output directory if it doesn't exist
+            output_dir = self.results_dir / f"run_{name}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            file = output_dir / f"{name}_values.csv"
+            if not file.exists():
                 fp = open(file, "w")
                 column_names = 'time,' + ','.join(list(points.keys())) + '\n'
                 fp.write(column_names)
             else:
                 fp = open(file, "a")
-            if self.controller.get_type() == 'simcdl':
-                timestamp = str(self.controller.get_current_time())
-            else:
-                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = str(self.controller.get_current_time())
             values = timestamp+','+','.join([str(value) for value in points.values()])+'\n'
             fp.write(values)
 
     def save_test_times(self, to_csv=False, name=None, step=None, st=None, et=None, duration=None):
         if to_csv:
-            file = self.FILE_FOLDER + name + "_test_times.csv"
-            if not os.path.exists(file):
+            # Create output directory if it doesn't exist
+            output_dir = self.results_dir / f"run_{name}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            file = output_dir / f"{name}_test_times.csv"
+            if not file.exists():
                 fp = open(file, "w")
                 column_names = 'step,start_time,end_time,duration\n'
                 fp.write(column_names)
@@ -118,10 +165,8 @@ class Test:
 
     def start_test(self, to_csv=False, name=None):
         output_acceptable_bounds = self.acceptable_op_bounds.to_dict()
-        if self.controller.get_type() == 'simcdl':
-            start_time = 0
-        else:
-            start_time = time.time()
+        start_time = self.controller.get_current_time()
+        
         for i in range(1, self.ip.shape[0]):
             self.current_step = i
             print("starting step %d"%i)
@@ -134,13 +179,7 @@ class Test:
             print("Successfully set input values=================================")
             print()
 
-            if self.current_step == 1 and self.controller.get_type() == 'simcdl':
-                self.controller.initialize_sim()
-
-            if self.controller.get_type() == 'simcdl':
-                step_start_time = self.controller.get_current_time()
-            else:
-                step_start_time = time.time()
+            step_start_time = self.controller.get_current_time()
 
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
             print("Conditions met. Current values = ")
@@ -153,20 +192,14 @@ class Test:
                 print("Checking if outputs match the expected values")
                 assertion_op = self.assert_output(expected_op_dict = expected_op, actual_output_dict=actual_outputs, acceptable_bounds_dict = output_acceptable_bounds)
                 if not assertion_op:
-                    if self.controller.get_type() == 'simcdl':
-                        end_time = self.controller.get_current_time()
-                    else:
-                        end_time = time.time()
+                    end_time = self.controller.get_current_time()
                     time_elapsed = round((end_time - start_time)/60, 2)
                     print("Test failed! Total time = %f minutes"%round(time_elapsed, 2))
                     self.save_test_times(to_csv=to_csv, name=name, step=-1, st=start_time, et=end_time,
                                          duration=time_elapsed)
 
                     return
-                if self.controller.get_type() == 'simcdl':
-                    step_end_time = self.controller.get_current_time()
-                else:
-                    step_end_time = time.time()
+                step_end_time = self.controller.get_current_time()
                 step_time_elapsed = round((step_end_time - step_start_time)/60, 2)
                 print("Passed step %d; Time taken for this step = %f minutes"%(i, round(step_time_elapsed, 2)))
                 self.save_test_times(to_csv=to_csv, name=name, step=i, st=step_start_time, et=step_end_time, duration=step_time_elapsed)
@@ -176,7 +209,7 @@ class Test:
 
             print("moving to the next step")
             print()
-        end_time = time.time()
+        end_time = self.controller.get_current_time()
         time_elapsed = round((end_time - start_time) / 60, 2)
         print("Controller passed the test successfully! Total time = %f minutes"%round(time_elapsed, 2))
         self.save_test_times(to_csv=to_csv, name=name, step=999, st=start_time, et=end_time,
@@ -299,11 +332,8 @@ class Test:
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
 
         print("step = %d " % self.current_step)
-        if self.controller.get_type() == 'simcdl':
-            current_time = self.controller.get_current_time()
-        else:
-            current_time = time.time()
-
+        device_type = self.controller.get_type()
+        current_time = self.controller.get_current_time()
         last_print = None
 
         while current_time - st < condition['ClockTime']:
@@ -328,7 +358,7 @@ class Test:
                 output_value_to_check = condition['VariableValue']
 
                 if type(output_value_to_check) == str:
-                    operator = re.findall("\A\D+", output_value_to_check)
+                    operator = re.findall(r"\A\D+", output_value_to_check)
                     if len(operator) == 1:
                         operator = operator[0]
                     else:
@@ -348,7 +378,9 @@ class Test:
                     print()
                     return
             
-            if self.controller.get_type() == 'simcdl':
+            # Print progress periodically (every minute for BACnet, every step for simulation)
+            device_type = self.controller.get_type()
+            if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
                 if seconds_since_start%60 == 0:
@@ -357,18 +389,18 @@ class Test:
                         print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
                         self.print_points(to_csv=to_csv, name=name)
 
-            if sleep_interval:
-                time.sleep(sleep_interval)
-
-            if self.controller.get_type() == 'simcdl':
-                self.controller.advance_sim()
-                current_time = self.controller.get_current_time()
-            else:
-                current_time = time.time()
+            # Wait and advance time (simulation steps FMU, BACnet sleeps)
+            wait_duration = sleep_interval if sleep_interval else 1
+            self.controller.wait(wait_duration)
+            
+            current_time = self.controller.get_current_time()
                 
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
+        # TODO: Handle initialization step more explicitly in the test loop
+        if actual_value is None:  # For simulation device, all varables are None before first wait() call
+            return False
         if operator == ">" and actual_value > expected_value:
             return True
         elif operator == ">=" and actual_value >= expected_value:
@@ -483,19 +515,44 @@ class Test:
 
 
 if __name__ == "__main__":
-    test = Test(config_file="")
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--reset", help="reset point values to first stage", action='store_true')
-    parser.add_argument("--output", help="print point values", action='store_true')
-    parser.add_argument("--csv", help="save outputs to csv", action='store_true')
-    parser.add_argument("--name", help="test name", default=time.strftime("%Y%m%dT%H%M%S"))
+    # Parse command-line arguments first
+    parser = argparse.ArgumentParser(
+        description="Run ASHRAE Guideline 36 conformance tests"
+    )
+    parser.add_argument(
+        "--global-config",
+        help="path to global config file (default: config/global_config.yaml)",
+        default=None
+    )
+    parser.add_argument(
+        "--test-config",
+        help="path to test-specific config file (default: determined from test_type)",
+        default=None
+    )
+    parser.add_argument("--reset", help="reset point values to first stage (overrides config)", action='store_true')
+    parser.add_argument("--output", help="print point values without running test (overrides config)", action='store_true')
+    parser.add_argument("--csv", help="save outputs to csv (overrides config)", action='store_true')
+    parser.add_argument("--name", help="test run name (overrides config)", default=None)
 
     args = parser.parse_args()
-    reset = args.reset
-    output = args.output
-    to_csv = args.csv
-    name = args.name
+    
+    # Initialize test with config files
+    test = Test(
+        global_config_path=args.global_config,
+        test_config_path=args.test_config
+    )
+    
+    # Get test_runner config with defaults
+    test_runner_config = test.config.get('test_runner', {})
+    
+    # Extract CLI arguments with fallback to config values
+    # All boolean flags use: CLI flag OR config value OR False
+    reset = args.reset or test_runner_config.get('reset_points', False)
+    output = args.output or test_runner_config.get('print_output', False)
+    to_csv = args.csv or test_runner_config.get('save_csv', False)
+    
+    # Name uses: CLI value OR config value OR timestamp
+    name = args.name or test_runner_config.get('name') or time.strftime("%Y%m%dT%H%M%S")
 
     print(to_csv)
     print(name)
