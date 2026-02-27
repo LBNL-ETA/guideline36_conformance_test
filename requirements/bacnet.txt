@@ -3,8 +3,9 @@ pyyaml
 pandas
 numpy
 openpyxl
-pathlib
+pathlib # TODO dont need this
 loguru
+pint
 
 # HIL requirements
 BAC0==0.99.932

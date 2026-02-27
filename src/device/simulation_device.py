@@ -375,7 +375,7 @@ class SimulationDevice(BaseDevice):
             f.write('installPackage(Buildings, "11.0.0", exactMatch=true);\n')
             # Uncomment to load Buildings from local:
             # f.write('loadFile("buildings/modelica-buildings/Buildings/package.mo");\n')
-            f.write(f'loadFile("{model_filepath}");\n')
+            f.write(f'loadFile("{model_filepath.as_posix()}");\n')
             f.write('setCommandLineOptions("--fmiFlags=s:cvode");\n')
             f.write('setCommandLineOptions("--fmiFilter=internal");\n')
             
