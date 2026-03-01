@@ -252,6 +252,15 @@ class SimulationDevice(BaseDevice):
         self._cache_point_value(variable_name, value)
         
         return value
+    
+    def get_variable_value_from_prev_time_step(self, var):
+        _,_,current_time = self.sim.get_current_time()
+        _,_,step = self.sim.get_step()
+        start_time = current_time - 2 * step
+        final_time = current_time - step
+        _,_,data = self.sim.get_results([var], start_time, final_time)
+
+        return data[var][-1]
 
     def convert_value_test_unit_to_device_unit(self, point_name, value):
         """
@@ -375,7 +384,8 @@ class SimulationDevice(BaseDevice):
             f.write('installPackage(Buildings, "11.0.0", exactMatch=true);\n')
             # Uncomment to load Buildings from local:
             # f.write('loadFile("buildings/modelica-buildings/Buildings/package.mo");\n')
-            f.write(f'loadFile("{model_filepath}");\n')
+            #f.write(f'loadFile("{model_filepath}");\n')
+            f.write(f'loadFile("{str(model_filepath).replace(chr(92), "/")}");\n')
             f.write('setCommandLineOptions("--fmiFlags=s:cvode");\n')
             f.write('setCommandLineOptions("--fmiFilter=internal");\n')
             

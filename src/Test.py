@@ -174,21 +174,16 @@ class Test:
             self.set_values(variable_value_dict=ip)
             print("Successfully set input values=================================")
             print()
-<<<<<<< HEAD
 
-            step_start_time = self.controller.get_current_time()
+            step_start_time = self.controller.get_current_time()            
+            if self.current_step == 1 and self.controller.get_type() == 'simulation':
+                self.controller._initialize_sim()
 
-=======
-            
-            if self.current_step == 1 and self.controller.get_type() == 'simcdl':
-                self.controller.initialize_sim()
-
-            if self.controller.get_type() == 'simcdl':
+            if self.controller.get_type() == 'simulation':
                 step_start_time = self.controller.get_current_time()
             else:
                 step_start_time = time.time()
             
->>>>>>> 2fffe3e (Pushing Test.py for further tests on sampling periods)
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
             print("Conditions met. Current values = ")
             self.print_points(to_csv=to_csv, name=name)
@@ -503,10 +498,10 @@ class Test:
         if operator_found:
             return result
         else:
-            # if "LAST" in expression:
-            #     return self.controller.get_variable_value_from_prev_time_step(current_variable)                
-            # else:
-            names_df = self.point_properties.loc[self.point_properties.name_in_test == expression]
+            if "LAST" in expression:
+                return self.controller.get_variable_value_from_prev_time_step(current_variable)                
+            else:
+                names_df = self.point_properties.loc[self.point_properties.name_in_test == expression]
             if not names_df.empty:
                 var_name = names_df.name_in_test.values[0]
                 var_to_check = names_df.index.values[0]
