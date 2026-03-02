@@ -185,6 +185,14 @@ class Test:
                 step_start_time = time.time()
             
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
+            
+            # DEBUG: What do we get AFTER conditions met?
+            print('**************Debugging inside Test.py, start_test****************')
+            print(f"[after test_conditions] time={self.controller.get_current_time()}")
+            actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
+            for k, v in actual_outputs.items():
+                print(f"  [comparison] {k} = {v}")
+            
             print("Conditions met. Current values = ")
             self.print_points(to_csv=to_csv, name=name)
 
@@ -333,7 +341,8 @@ class Test:
                     return
             
             # Print progress periodically (every minute for BACnet, every step for simulation)
-            device_type = self.controller.get_type()
+            device_type = self.controller.get_type()                        
+            
             if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
@@ -345,10 +354,26 @@ class Test:
 
             # Wait and advance time (simulation steps FMU, BACnet sleeps)
             wait_duration = sleep_interval if sleep_interval else 1
-            self.controller.wait(wait_duration)
-            
+            self.controller.wait(wait_duration) 
             current_time = self.controller.get_current_time()
-                
+            # DEBUG: Print every iteration near end
+            remaining = condition['ClockTime'] - (current_time - st)
+            print('******************Debugging inside test_conditions**************')
+            if remaining < 3 * self.current_step:  # last few iterations
+                print(f"[loop] time={current_time}, remaining={remaining}")
+                for var in self.op.columns.values:
+                    print(f"  [loop] {var} = {self.controller.get_current_variable_value(var)}")
+        current_time = self.controller.get_current_time()
+        seconds_since_start = int(current_time - st)
+        for obj in Ramp.instances:
+            if obj.params['ramp_step']:                        
+                obj.set_value(seconds_since_start)                    
+
+        for obj in Periodic.instances:
+            # import pdb; pdb.set_trace()
+            if obj.params['periodic_step']:
+                obj.set_value(seconds_since_start)
+        #Create a new function outside the wait function          
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
@@ -572,13 +597,15 @@ class Ramp(StateOperation):
         ramp_end = self.params['ramp_end']
         ramp_rate = self.params['ramp_rate']
         ramp_period = self.params['ramp_period']
-
+        ramp_duration = self.params['duration']
+        print("#########Entering Ramp's set_value##########")
         if seconds_since_start % ramp_period == 0:
             # import pdb; pdb.set_trace()
             current_period = (seconds_since_start / ramp_period)
             
             if ramp_start < ramp_end:
                 value_to_set = ramp_start + ramp_rate * current_period * ramp_period
+                print(f'RAMP_START is {ramp_rate}, RAMP_RATE is {ramp_rate}, SECONDS_SINCE_START is {seconds_since_start}')
                 if value_to_set > ramp_end:
                     value_to_set = ramp_end
             elif ramp_start > ramp_end:
@@ -588,7 +615,9 @@ class Ramp(StateOperation):
 
             current_value = self.test.controller.get_current_variable_value(self.variable)
             if current_value != None:
-                if round(value_to_set, 2) != round(current_value, 2):
+                if seconds_since_start <= ramp_duration:
+                #if round(value_to_set, 2) != round(current_value, 2):
+                    print("#########Entering the round condition in set_value################")
                     var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
                     print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
                     print()

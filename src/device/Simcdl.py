@@ -223,6 +223,11 @@ class Simcdl(object):
 
         return res
 
+
+
+
+
+
     def __get_results(self, res, store=True, store_initial=False):
         '''Get results at the end of a simulation and throughout the
         simulation period for storage. This method assigns these results

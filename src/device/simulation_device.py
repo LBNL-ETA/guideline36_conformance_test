@@ -210,11 +210,11 @@ class SimulationDevice(BaseDevice):
         # Convert from test units to device units
         converted_value = self._unit_conversion(value, point.unit, point.point_type)
         
-        # Store in appropriate dictionary
-        if point.causality == 'Parameter':
-            self.parameters[point_name] = converted_value
-        else:
-            self.u[point_name] = converted_value
+        # # Store in appropriate dictionary
+        # if point.causality == 'Parameter':
+        #     self.parameters[point_name] = converted_value
+        # else:
+        #     self.u[point_name] = converted_value
         
         # Update cached value
         self._cache_point_value(point_name, converted_value)
@@ -239,18 +239,27 @@ class SimulationDevice(BaseDevice):
         if not self._simulation_started:
             self._cache_point_value(variable_name, None)
             return None
+    
+        # Try direct key match (CDL path)
+        point = self.points.get(variable_name)
+        if point is not None and point.value is not None:
+            return point.value
+    
+        # Try test name match
+        point = self.get_point_by_test_name(variable_name)
+        if point is not None and point.value is not None:
+            return point.value
+    
         
         _, _, current_time = self.sim.get_current_time()
         _, _, step = self.sim.get_step()
-        
         start_time = current_time - step
         final_time = current_time
-        
+    
         _, _, data = self.sim.get_results([variable_name], start_time, final_time)
-        
         value = data[variable_name][-1]
         self._cache_point_value(variable_name, value)
-        
+    
         return value
     
     def get_variable_value_from_prev_time_step(self, var):
@@ -315,12 +324,65 @@ class SimulationDevice(BaseDevice):
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
         
+        for point_name, point in self.points.items():
+            if point.value is None:
+                continue
+    
+            if point.causality == 'Input':
+                self.u[point_name] = point.value
+    
+            elif point.causality == 'Parameter':
+                self.parameters[point_name] = point.value
+        
         # On first call, initialize simulation state with current inputs
         if not self._simulation_started:
             self._simulation_started = True
         
         # Advance one step - the test loop will call this repeatedly
-        self.advance_sim()
+        payload = self.advance_sim()
+        # DEBUG: Print what we just pushed
+        print('*************Debugging (in wait)***********')
+        print(f"[wait] sim_time={self.get_current_time()}")
+        if payload is not None:
+            for point_name in self.points:
+                if point_name in payload:
+                    self._cache_point_value(point_name, payload[point_name])
+    
+                    
+    
+    def sync_points(self):
+        """
+        Synchronize self.points with the latest simulation state.
+        
+        - Pulls current input/parameter values from points into self.u
+        - Queries Simcdl for latest output values and pushes them into points
+        
+        Call this whenever you need points to reflect the true current state,
+        e.g., before reading values for comparison with expected outputs.
+        """
+        # Pull inputs/parameters from points → self.u
+        for point_name, point in self.points.items():
+            if point.value is None:
+                continue
+            if point.causality == 'Input':
+                self.u[point_name] = point.value
+            elif point.causality == 'Parameter':
+                self.parameters[point_name] = point.value
+    
+        # Push latest simulation outputs → points
+        _, _, current_time = self.sim.get_current_time()
+        _, _, step = self.sim.get_step()
+        start_time = current_time - step
+        final_time = current_time
+    
+        for point_name, point in self.points.items():
+            if point.causality in ('Input', 'Output'):
+                _, _, data = self.sim.get_results([point_name], start_time, final_time)
+                if point_name in data and len(data[point_name]) > 0:
+                    self._cache_point_value(point_name, data[point_name][-1])
+    
+    
+    
 
     def _initialize_sim(self, save_point_properties=True):
         """
@@ -361,6 +423,7 @@ class SimulationDevice(BaseDevice):
             raise RuntimeError("Simulation not initialized")
         
         status, message, payload = self.sim.advance(self.u)
+        return payload
 
     def _compile_fmu(self, model_filepath, model_name, fmu_path, parameters):
         """
