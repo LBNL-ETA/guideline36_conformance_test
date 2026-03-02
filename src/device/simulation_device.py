@@ -307,46 +307,34 @@ class SimulationDevice(BaseDevice):
         return current_time
     
     def wait(self, duration):
-        """
-        Advance simulation by one step.
-        
-        On the first call, this will initialize the simulation with current
-        input values before advancing. 
-        
-        The test script loop handles calling this repeatedly until conditions are met.
-        Duration parameter is ignored for simulation devices (step size is fixed).
-        
-        Parameters
-        ----------
-        duration
-            Ignored for simulation devices (kept for interface compatibility)
-        """
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
-        
+    
         for point_name, point in self.points.items():
             if point.value is None:
                 continue
-    
             if point.causality == 'Input':
                 self.u[point_name] = point.value
-    
             elif point.causality == 'Parameter':
                 self.parameters[point_name] = point.value
-        
-        # On first call, initialize simulation state with current inputs
+    
         if not self._simulation_started:
             self._simulation_started = True
+    
+        # Capture payload
+        status, message, payload = self.sim.advance(self.u)
+
+        _, _, current_time = self.sim.get_current_time()
+        _, _, step = self.sim.get_step()
+        start_time = current_time - step
+        final_time = current_time
         
-        # Advance one step - the test loop will call this repeatedly
-        payload = self.advance_sim()
-        # DEBUG: Print what we just pushed
-        print('*************Debugging (in wait)***********')
-        print(f"[wait] sim_time={self.get_current_time()}")
-        if payload is not None:
-            for point_name in self.points:
-                if point_name in payload:
-                    self._cache_point_value(point_name, payload[point_name])
+        for point_name, point in self.points.items():
+            if point.causality in ('Input', 'Output'):
+                _, _, data = self.sim.get_results([point_name], start_time, final_time)
+                value = data[point_name][-1] if point_name in data and len(data[point_name]) > 0 else 'NOT FOUND'                                
+                if point_name in data and len(data[point_name]) > 0:
+                    self._cache_point_value(point_name, data[point_name][-1])
     
                     
     
