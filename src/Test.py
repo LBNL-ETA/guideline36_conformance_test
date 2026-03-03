@@ -374,7 +374,7 @@ class Test:
             if obj.params['periodic_step']:
                 obj.set_value(seconds_since_start)
     
-        self.controller.wait(wait_duration)
+        #self.controller.wait(wait_duration)
         #Create a new function outside the wait function          
         print("test condition finished")
 
