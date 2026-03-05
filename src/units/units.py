@@ -4,21 +4,23 @@ reg = unit_registry
 Q = reg.Quantity
 
 
-def unit(q: str | Q, explicit=True): # explict. don't want pint to interpret. probably better performance
+def unit(q: str | Q, explicit=True): # explict. don't want pint to interpret/parse. probably better performance
     if isinstance(q, str):
         if q != '1': assert(not q[0].isnumeric())
         if explicit:
             to_pint: dict[str, Q]  = { 
                 # temps
-                'F': reg('fahrenheit'), # just 'F' incorrectly interpreted
-                'C': reg('celsius'),
-                'K': reg('kelvin'),
+                'F':        reg('fahrenheit'), # just 'F' incorrectly interpreted
+                'C':        reg('celsius'),
+                'K':        reg('kelvin'),
                 # flows
-                'cfm': reg('cubic_foot / minute'), # 'cfm' incorrectly interpreted with default reg
-                'm3/s': reg('meter ** 3 / second'),
+                'cfm':      reg('cubic_foot / minute'), # 'cfm' incorrectly interpreted with default reg
+                'gpm':      reg('gallons / minute'),
+                'm3/s':     reg('meter ** 3 / second'),
                 # unitless
-                'percent': reg('percent'),
-                '1':       reg(''),
+                'percent':  reg('percent'),
+                '1':        reg(''),
+                'ppm':      reg('ppm'),
             }
             for d in ('F', 'C', ): # but not 'K' b/c it doesn't have an offset
                 assert(d in to_pint)
@@ -35,11 +37,8 @@ u = unit
 
 def convert(frm: Q, to: Q):
     return frm.to(to)
+def convert(q, frm, to):
+    frm = Q(q, unit(frm))
+    to = unit(to)
+    return frm.to(to)
 
-
-print(
-#convert( Q(1, u('cfm')), u('m3/s') )
-#convert( Q(100, u('dF')), u('K') )
-convert( Q(20, u('percent')), u('1') ),
-convert( Q(.20, u('1')), u('percent') )
-)

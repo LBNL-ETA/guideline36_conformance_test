@@ -7,12 +7,14 @@ models compiled to FMU format using OpenModelica.
 
 from src.device.base_device import BaseDevice, Point
 from src.device.Simcdl import Simcdl
+from src.units.units import convert
 import subprocess
 import time
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from loguru import logger
+
 
 
 class SimulationDevice(BaseDevice):
@@ -422,15 +424,14 @@ class SimulationDevice(BaseDevice):
         -------
         Converted value in CDL units
         """
-        # Handle numeric conversions
-        if unit == 'cfm' and isinstance(value, (int, float, np.int64)):
-            return self._cfm_to_m3_s(value)
-        elif unit == 'F' and isinstance(value, (int, float, np.int64)):
-            return self._F_to_K(value)
-        elif unit == 'dF' and isinstance(value, (int, float, np.int64)):
-            return self._dF_to_dK(value)
-        elif unit == 'percent' and isinstance(value, (int, float, np.int64)):
-            return self._percent_to_one(value)
+        map = {
+            'cfm':      'm3/s',
+            'F':        'K',
+            'dF':       'K', 
+            'percent':  '1'}
+        if unit in map:
+            return convert(value, unit, map[unit] ).magnitude
+
         
         # Handle string/boolean conversions
         if isinstance(value, str):
@@ -445,31 +446,4 @@ class SimulationDevice(BaseDevice):
         
         return value
 
-    @staticmethod
-    def _cfm_to_m3_s(cfm):
-        """Convert cubic feet per minute to cubic meters per second."""
-        return cfm * 0.0283168 * (1 / 60)
-
-    @staticmethod
-    def _F_to_K(F):
-        """Convert degrees Fahrenheit to Kelvin."""
-        return (F - 32) * 5 / 9 + 273.15
-
-    @staticmethod
-    def _dF_to_dK(dF):
-        """
-        Convert temperature difference in Fahrenheit to Kelvin.
-        
-        Uses 70°F as reference point.
-        """
-        F1 = 70
-        F2 = 70 + dF
-        K1 = SimulationDevice._F_to_K(F1)
-        K2 = SimulationDevice._F_to_K(F2)
-        return K2 - K1
-
-    @staticmethod
-    def _percent_to_one(percent):
-        """Convert percentage (0-100) to fraction (0-1)."""
-        return percent / 100
 
