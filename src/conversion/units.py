@@ -1,5 +1,5 @@
 # from . import ureg. this should work if the code is packaged.
-from src.units import unit_registry
+from src.conversion import unit_registry
 reg = unit_registry
 Q = reg.Quantity
 
@@ -33,6 +33,7 @@ def unit(q: str | Q, explicit=True): # explict. don't want pint to interpret/par
         assert(q.magnitude == 1)
         return q
 u = unit
+
 
 
 def convert(frm: Q, to: Q):

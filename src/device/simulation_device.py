@@ -7,7 +7,7 @@ models compiled to FMU format using OpenModelica.
 
 from src.device.base_device import BaseDevice, Point
 from src.device.Simcdl import Simcdl
-from src.units.units import convert
+from src.conversion.units import convert
 import subprocess
 import time
 import numpy as np
@@ -255,7 +255,7 @@ class SimulationDevice(BaseDevice):
         
         return value
 
-    def convert_value_test_unit_to_device_unit(self, point_name, value):
+    def convert_value_test_unit_to_device_unit(self, point_name, value):   # not being used!
         """
         Convert a value from test units to device (FMU) units.
         
@@ -435,15 +435,13 @@ class SimulationDevice(BaseDevice):
         
         # Handle string/boolean conversions
         if isinstance(value, str):
-            value_to_set = True
-            if value.lower() in ['closed', 'present', 'on']:
-                value_to_set = True
-            elif value.lower() in ['open', 'absent', 'off']:
-                value_to_set = False
-            
-            # FMU expects numeric values (1.0/0.0) for booleans, not string "true"/"false"
-            return 1.0 if value_to_set else 0.0
+            return self._convert_state(value)
         
-        return value
+        # raise NotHandled. everything should 'convert'
+        return value 
+
+    from ..conversion.state import convert as _
+    _convert_state = staticmethod(_); del _
+        
 
 
