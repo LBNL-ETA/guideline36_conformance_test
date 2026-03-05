@@ -472,3 +472,4 @@ class SimulationDevice(BaseDevice):
     def _percent_to_one(percent):
         """Convert percentage (0-100) to fraction (0-1)."""
         return percent / 100
+
