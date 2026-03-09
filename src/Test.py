@@ -374,6 +374,7 @@ class Test:
             if obj.params['periodic_step']:
                 obj.set_value(seconds_since_start)
     
+        self.controller.final_step_wait(flex_duration = 0.000001)
         #self.controller.wait(wait_duration)
         #Create a new function outside the wait function          
         print("test condition finished")
@@ -585,14 +586,24 @@ class Ramp(StateOperation):
     def get_parameter_dict(self):
         val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
-        self.params = {
-            "ramp_start": self.test.evaluate_expression(string_parameters[0]),
-            "ramp_end": self.test.evaluate_expression(string_parameters[1]),
-            "duration": self.test.evaluate_expression(string_parameters[2]),
-            "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
-            "ramp_period":self.test.evaluate_expression(string_parameters[3]),
-            "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
-        }
+        if len(string_parameters) < 4:
+            self.params = {
+                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
+                "duration": self.test.evaluate_expression(string_parameters[2]),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_period":10,
+                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+            }
+        else:
+            self.params = {
+                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
+                "duration": self.test.evaluate_expression(string_parameters[2]),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_period":self.test.evaluate_expression(string_parameters[3]),
+                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+            }
 
     def set_value(self, seconds_since_start):        
         ramp_start = self.params['ramp_start']
@@ -600,7 +611,6 @@ class Ramp(StateOperation):
         ramp_rate = self.params['ramp_rate']
         ramp_period = self.params['ramp_period']
         ramp_duration = self.params['duration']
-        print("#########Entering Ramp's set_value##########")
         if seconds_since_start % ramp_period == 0:
             # import pdb; pdb.set_trace()
             current_period = (seconds_since_start / ramp_period)
@@ -619,10 +629,7 @@ class Ramp(StateOperation):
             if current_value != None:
                 if seconds_since_start <= ramp_duration:
                 #if round(value_to_set, 2) != round(current_value, 2):
-                    print("#########Entering the round condition in set_value################")
                     var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
-                    print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
-                    print()
                     self.test.controller.set_single_point(self.variable, value_to_set)
 
 class Periodic(StateOperation):
@@ -645,12 +652,20 @@ class Periodic(StateOperation):
     def get_parameter_dict(self):
         val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
-        self.params = {
-            "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
-            "periodic_expression": string_parameters[0],
-            "period": float(string_parameters[1]),
-            "periodic_step": True,
-        }
+        if len(string_parameters) < 2:
+            self.params = {
+                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_expression": string_parameters[0],
+                "period": 10,
+                "periodic_step": True,
+            }
+        else:    
+            self.params = {
+                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_expression": string_parameters[0],
+                "period": float(string_parameters[1]),
+                "periodic_step": True,
+            }
         
     def set_value(self, seconds_since_start):        
         periodic_expression = self.params['periodic_expression']
