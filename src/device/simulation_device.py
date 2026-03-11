@@ -428,7 +428,10 @@ class SimulationDevice(BaseDevice):
             'cfm':      'm3/s',
             'F':        'K',
             'dF':       'K', 
-            'percent':  '1'}
+            'percent':  '1',
+            'gpm':      'm3/s',
+            'ppm':      'ppm', # ?
+            }
         if unit in map:
             return convert(value, unit, map[unit] ).magnitude
 
@@ -437,8 +440,8 @@ class SimulationDevice(BaseDevice):
         if isinstance(value, str):
             return self._convert_state(value)
         
-        # raise NotHandled. everything should 'convert'
-        return value 
+        # everything should map (explicitly)
+        raise Exception('unhandled conversion')
 
     from ..conversion.state import convert as _
     _convert_state = staticmethod(_); del _
