@@ -6,16 +6,47 @@ To achieve this goal, a performance validation method is needed to provide indep
 
 This software has been developed to conduct standardized, repeatable and manufacturer independent tests to validate that a BAS controller has been programmed in conformance with Guideline 36. Manufacturers would provide the controller (or the control program) and the software would run a suite of tests by setting a set of inputs to the controller and verifying the output signals from the controller matches the expected output as set by Guideline 36.
 
+## Installation
+
+You can develop in a [container](./README.md#using-docker-compose) or use [pixi](./README.md#using-pixi).
+
+### Using Docker Compose
+
+Install Docker. Then, the following.
+
+Build the simulation image (if first time) and run container in detached mode:
+
+```
+$ docker compose up simulation -d
+```
+Attach to the container interactively in the right working directory:
+
+```
+$ docker compose exec -w /mnt/shared simulation bash
+```
+Run a test(s) as described in the section "Run a Test."
+
+Exit the container: ctrl+d
+
+Stop and remove the container:
+
+```
+$ docker compose down
+```
+
+### Using Pixi
+
+[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation`.
+`exit` to exit.
+
+On Windows, you have to manually install [OpenModelica](https://openmodelica.org/).
+The compiler executable, `omc`, will be available on [pixi windows simulation environment activation](./pyproject.toml).
+
 
 ## Getting Started for a CDL Simulation Device
 
-[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation`. `exit` to exit.
-
-On Windows, you have to manually install [OpenModelica](https://openmodelica.org/). The compiler executable, `omc`, will be [available](./Scripts/om/setup.bat) on [pixi windows simulation environment activation](./pyproject.toml).
-
     - Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
 
-Also, see [docker documentation](./docker/readme.md) for a suggestion on how to use docker for development.
 
 ### Run a Test
 1. Configure the test:
