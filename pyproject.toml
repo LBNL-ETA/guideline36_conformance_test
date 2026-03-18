@@ -20,11 +20,12 @@ simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
 [tool.pixi.feature.simulation.dependencies]
 pyfmi = '*'  # get pyfmi from conda (overrides above)
 [tool.pixi.feature.simulation.target.linux-64.dependencies]
-omcompiler = '*'  # openmodelica only available on linux
+omcompiler = '*'                                            # openmodelica only available on linux64
 [tool.pixi.feature.simulation.target.win-64.dependencies]   # but not other platforms (install it some other way)
 [tool.pixi.feature.simulation.target.win-64.activation]
 env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
-[tool.pixi.feature.simulation.target.osx-64.dependencies]   # so these are empty to denote not to do anything
+[tool.pixi.feature.simulation.target.osx-64.dependencies]    # so these are empty to denote not to do anything
+[tool.pixi.feature.simulation.target.osx-64arm.dependencies] # so these are empty to denote not to do anything
 
 
 [dependency-groups]
@@ -34,10 +35,11 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["win-64", "linux-64", "osx-64"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
 
 [tool.pixi.pypi-dependencies]
 g36test = { path = ".", editable = true } # TODO: need a proper name like g36test
+# but really needs a 'dev' installation
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
