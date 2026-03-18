@@ -1160,7 +1160,7 @@ packages:
 - pypi: ./
   name: g36test
   version: 0.0.1
-  sha256: 80e77437f71775ce8ed6ff98154f203425d39ba0880ac3e3607903c749902508
+  sha256: 8820dbb87c5a6e42c5d009b4685e19c649e9061dca0fa2af1c75a898bbeb4607
   requires_dist:
   - pyyaml
   - pandas

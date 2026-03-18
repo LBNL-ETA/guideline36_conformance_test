@@ -25,7 +25,7 @@ omcompiler = '*'                                            # openmodelica only 
 [tool.pixi.feature.simulation.target.win-64.activation]
 env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 [tool.pixi.feature.simulation.target.osx-64.dependencies]    # so these are empty to denote not to do anything
-[tool.pixi.feature.simulation.target.osx-64arm.dependencies] # so these are empty to denote not to do anything
+[tool.pixi.feature.simulation.target.osx-arm64.dependencies] # so these are empty to denote not to do anything
 
 
 [dependency-groups]
