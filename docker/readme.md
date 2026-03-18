@@ -1,3 +1,21 @@
+# Using Docker Compose
+Install Docker. Then, the following.
+
+Build the simulation image (if first time) and run container in detached mode:
+
+$ docker compose up simulation -d
+Attach to the container interactively in the right working directory:
+
+$ docker compose exec -w /mnt/shared simulation bash
+Run a test(s) as described in the section "Run a Test."
+
+Exit the container: ctrl+d
+
+Stop and remove the container:
+
+$ docker compose down
+
+
 This is a one-liner for development using docker (to access linux platform).
 
 `docker run -ti -v g36cache:/root/.openmodelica,/root/.cache -v ../:/work -w /work  --rm ghcr.io/prefix-dev/pixi:latest pixi shell -e simulation`
