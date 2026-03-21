@@ -186,9 +186,9 @@ class Test:
             
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
             
-            # DEBUG: What do we get AFTER conditions met?
-            print('**************Debugging inside Test.py, start_test****************')
-            print(f"[after test_conditions] time={self.controller.get_current_time()}")
+            if self.controller.get_type() == 'simulation':
+                self.controller.final_step_wait(flex_duration=0.0000001)
+                      
             actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
             for k, v in actual_outputs.items():
                 print(f"  [comparison] {k} = {v}")
@@ -297,7 +297,7 @@ class Test:
         device_type = self.controller.get_type()
         current_time = self.controller.get_current_time()
         last_print = None
-
+        condition_met = False
         while current_time - st < condition['ClockTime']:
 
             seconds_since_start = int(current_time - st)
@@ -305,12 +305,26 @@ class Test:
             #iterate over all StateOperation instances and call set_value
             for obj in Ramp.instances:
                 if obj.params['ramp_step']:                        
-                    obj.set_value(seconds_since_start)                    
+                    obj.set_value(seconds_since_start)   
+                    
+                    if device_type == 'simulation':
+                        self.controller.final_step_wait(flex_duration=0.0000001)
+                        # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
+                        self.print_points(to_csv=to_csv, name=name)
+
 
             for obj in Periodic.instances:
                 # import pdb; pdb.set_trace()
                 if obj.params['periodic_step']:
-                    obj.set_value(seconds_since_start)                    
+                    obj.set_value(seconds_since_start)                     
+                    # >>> ADDED: immediately advance by epsilon after periodic change
+                    if device_type == 'simulation':
+                        self.controller.final_step_wait(flex_duration=0.0000001)
+                        # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
+                        self.print_points(to_csv=to_csv, name=name)
+
+
+            
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClockTime']))
@@ -356,13 +370,8 @@ class Test:
             wait_duration = sleep_interval if sleep_interval else 1
             self.controller.wait(wait_duration) 
             current_time = self.controller.get_current_time()
-            # DEBUG: Print every iteration near end
-            remaining = condition['ClockTime'] - (current_time - st)
-            print('******************Debugging inside test_conditions**************')
-            if remaining < 3 * self.current_step:  # last few iterations
-                print(f"[loop] time={current_time}, remaining={remaining}")
-                for var in self.op.columns.values:
-                    print(f"  [loop] {var} = {self.controller.get_current_variable_value(var)}")
+            remaining = condition['ClockTime'] - (current_time - st)            
+            
         current_time = self.controller.get_current_time()
         seconds_since_start = int(current_time - st)
         for obj in Ramp.instances:
@@ -374,7 +383,7 @@ class Test:
             if obj.params['periodic_step']:
                 obj.set_value(seconds_since_start)
     
-        self.controller.final_step_wait(flex_duration = 0.000001)
+        self.controller.final_step_wait(flex_duration = 0.0000001)
         #self.controller.wait(wait_duration)
         #Create a new function outside the wait function          
         print("test condition finished")
@@ -631,6 +640,7 @@ class Ramp(StateOperation):
                 #if round(value_to_set, 2) != round(current_value, 2):
                     var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
                     self.test.controller.set_single_point(self.variable, value_to_set)
+
 
 class Periodic(StateOperation):
     OP_TOKEN = "PERIODIC("
