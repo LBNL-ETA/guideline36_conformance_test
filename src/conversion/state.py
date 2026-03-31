@@ -1,10 +1,8 @@
 
 class State(str):
     
-    def __bool__(self):
-        raise NotImplementedError
-    def __int__(self):
-        raise NotImplementedError
+    def __bool__(self): return self.bool
+    def __int__(self):  return self.int
     def __eq__(self, other: 'Self'):
         return self.lower() == other.lower()
 
@@ -14,15 +12,15 @@ class State(str):
     def __repr__(self):return f"{self.__class__.__name__}({self})"
 
     @classmethod
-    def make(cls, name: str, intValue: int = None, boolValue: bool = None):
-        assert(not ((boolValue is None) and (intValue is None)))
-        if intValue is None:  intValue = int(intValue)
-        if boolValue is None: boolValue = bool(intValue)
-        def __bool__(self): return bool(boolValue)
-        def __int__(self): return int(intValue)
-        cls.__bool__ = __bool__
-        cls.__int__ = __int__
+    def make(cls, name: str, value: int | bool):
         _ = cls(name)
+        if isinstance(value, int):
+            _.int = value
+            _.bool = bool(value)
+        else:
+            assert(isinstance(value, bool))
+            _.bool = value
+            _.int = int(value)
         return _
     mk = make
 
