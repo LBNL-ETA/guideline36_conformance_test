@@ -1,9 +1,0 @@
-# General
-pyyaml
-pandas
-numpy
-openpyxl
-pathlib
-
-# HIL requirements
-BAC0==0.99.932

@@ -1,0 +1,19 @@
+# ideally should match ver in pixi.lock (or pyproject.toml if spec there)
+FROM openmodelica/openmodelica:v1.25.0-ompython 
+#ARG BLDENV=simulation
+RUN apt-get update
+
+RUN apt-get install -y curl
+RUN curl -fsSL https://pixi.sh/install.sh | bash
+# not oci std 
+## SHELL [ "/bin/bash" , "-c" ] 
+
+# you'd do things like this for 'prod'
+# RUN mkdir /${BLDENV}
+# WORKDIR /${BLDENV}
+# COPY pyproject.toml .
+# COPY pixi.lock .
+# RUN /root/.pixi/bin/pixi install -e ${BLDENV} 
+
+# RUN /root/.pixi/bin/pixi shell-hook -e ${BLDENV} >> /root/.bashrc
+

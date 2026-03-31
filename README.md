@@ -17,12 +17,12 @@ Install Docker. Then, the following.
 Build the simulation image (if first time) and run container in detached mode:
 
 ```
-$ docker compose up simulation -d
+$ docker compose up dev -d
 ```
 Attach to the container interactively in the right working directory:
 
 ```
-$ docker compose exec -w /mnt/shared simulation bash
+$ docker compose exec -w /work dev bash -c "/root/.pixi/bin/pixi shell -e simulation"
 ```
 Run a test(s) as described in the section "Run a Test."
 
