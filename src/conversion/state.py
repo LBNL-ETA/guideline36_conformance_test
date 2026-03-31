@@ -33,43 +33,50 @@ class State(str):
     
 
 S = State
+
+_ =  [
+    S.mk('True', True),
+    S.mk('False',  False) ]
+boolean = S.make_group(_)
+
 _ =  [
     S.mk('present', True),
     S.mk('absent',  False) ]
-presence = S.make_group(_)
+occupancy = S.make_group(_)
 
-_ = [
-    S.mk('closed',  True),
-    S.mk('open',    False),]
-gate = S.make_group(_)
+_ =  [
+    S.mk('enabled', True),
+    S.mk('disabled',  False) ]
+status = S.make_group(_)
+
+_ =  [
+    S.mk('start', True),
+    S.mk('stop',  False) ]
+commanded_state = S.make_group(_)
 
 _ = [
     S.mk('on',      True),
     S.mk('off',     False),]
+run_state = S.make_group(_)
+
+_ = [
+    S.mk('closed',  True),
+    S.mk('open',    False),]
 switch = S.make_group(_)
 
 _ = [
-    S.mk(  'occupied',  True),
-    S.mk('unoccupied',  False),]
-occupancy = S.make_group(_)
-
-_ = [
-    S.mk('warmup',       1),
-    S.mk('cooldown',    -1),]
-tempphase = S.make_group(_)
-
-_ = [
-    S.mk('setback', -1),
-    S.mk('setup',    1),]
-set_ = S.make_group(_)
-
-_ = [
-    S.mk('freeze-protection', 1)]
-protection = S.make_group(_)
+    S.mk('occupied',    1),
+    S.mk('cooldown',    2),
+    S.mk('setup',       3),
+    S.mk('warmup',      4),
+    S.mk('setback',     5),
+    S.mk('unoccupied',  6),
+    S.mk('none',        7),]
+mode = S.make_group(_)
 
 
 S.s = states = {}
-for ss in (presence, gate, switch, occupancy, tempphase, set_, protection ):
+for ss in (boolean, occupancy, status, commanded_state, run_state, switch, mode ):
     states.update(ss)
 del ss
 del _
