@@ -207,7 +207,7 @@ class Simcdl(object):
         if step >= 30:
             self.options['ncp'] = int((end_time-start_time)/30)
         elif step == 0:
-           pass
+            pass
         elif (step < 30) and (step > 0):
             self.options['ncp'] = int((end_time-start_time)/step)
         # Simulate fmu

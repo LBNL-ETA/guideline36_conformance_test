@@ -332,7 +332,6 @@ class SimulationDevice(BaseDevice):
         
         self.populate_points_post_simulation()
 
-
     def final_step_wait(self, flex_duration = 0):
         _, _, previous_step_duration = self.sim.get_step()                        
         self.populate_input_and_parameters()            
@@ -342,9 +341,6 @@ class SimulationDevice(BaseDevice):
         self.populate_points_post_simulation()
         self.sim.set_step(previous_step_duration)            
     
-    
-    
-
     def _initialize_sim(self, save_point_properties=True):
         """
         Initialize the FMU simulation (private method).
