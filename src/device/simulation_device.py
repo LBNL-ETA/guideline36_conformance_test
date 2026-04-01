@@ -210,12 +210,6 @@ class SimulationDevice(BaseDevice):
         # Convert from test units to device units
         converted_value = self._unit_conversion(value, point.unit, point.point_type)
         
-        # # Store in appropriate dictionary
-        # if point.causality == 'Parameter':
-        #     self.parameters[point_name] = converted_value
-        # else:
-        #     self.u[point_name] = converted_value
-        
         # Update cached value
         self._cache_point_value(point_name, converted_value)
 
@@ -243,13 +237,7 @@ class SimulationDevice(BaseDevice):
         # Try direct key match (CDL path)
         point = self.points.get(variable_name)
         if point is not None and point.value is not None:
-            return point.value
-    
-        # Try test name match
-        point = self.get_point_by_test_name(variable_name)
-        if point is not None and point.value is not None:
-            return point.value
-    
+            return point.value    
         
         _, _, current_time = self.sim.get_current_time()
         _, _, step = self.sim.get_step()
@@ -323,12 +311,13 @@ class SimulationDevice(BaseDevice):
         ####
         for point_name, point in self.points.items():
             if point.causality in ('Input', 'Output'):
-                _, _, data = self.sim.get_results([point_name], start_time, final_time)
-                value = data[point_name][-1] if point_name in data and len(data[point_name]) > 0 else 'NOT FOUND'                                
-                if point_name in data and len(data[point_name]) > 0:
+                status, _, data = self.sim.get_results([point_name], start_time, final_time)
+                if status == 200:
+                    value = data[point_name][-1]
                     self._cache_point_value(point_name, data[point_name][-1])
-            
-    
+                else:
+                    raise(ValueError, 'Problem finding data for point {0} in simulation results.'.format(point_name))
+
     def wait(self, duration):        
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
