@@ -185,6 +185,14 @@ class Test:
                 step_start_time = time.time()
             
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
+            
+            if self.controller.get_type() == 'simulation':
+                self.controller.final_step_wait(flex_duration=0.0000001)
+                      
+            actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
+            for k, v in actual_outputs.items():
+                print(f"  [comparison] {k} = {v}")
+            
             print("Conditions met. Current values = ")
             self.print_points(to_csv=to_csv, name=name)
 
@@ -289,7 +297,7 @@ class Test:
         device_type = self.controller.get_type()
         current_time = self.controller.get_current_time()
         last_print = None
-
+        condition_met = False
         while current_time - st < condition['ClockTime']:
 
             seconds_since_start = int(current_time - st)
@@ -297,12 +305,26 @@ class Test:
             #iterate over all StateOperation instances and call set_value
             for obj in Ramp.instances:
                 if obj.params['ramp_step']:                        
-                    obj.set_value(seconds_since_start)                    
+                    obj.set_value(seconds_since_start)   
+                    
+                    if device_type == 'simulation':
+                        self.controller.final_step_wait(flex_duration=0.0000001)
+                        # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
+                        self.print_points(to_csv=to_csv, name=name)
+
 
             for obj in Periodic.instances:
                 # import pdb; pdb.set_trace()
                 if obj.params['periodic_step']:
-                    obj.set_value(seconds_since_start)                    
+                    obj.set_value(seconds_since_start)                     
+                    # >>> ADDED: immediately advance by epsilon after periodic change
+                    if device_type == 'simulation':
+                        self.controller.final_step_wait(flex_duration=0.0000001)
+                        # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
+                        self.print_points(to_csv=to_csv, name=name)
+
+
+            
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClockTime']))
@@ -333,7 +355,8 @@ class Test:
                     return
             
             # Print progress periodically (every minute for BACnet, every step for simulation)
-            device_type = self.controller.get_type()
+            device_type = self.controller.get_type()                        
+            
             if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
@@ -345,10 +368,24 @@ class Test:
 
             # Wait and advance time (simulation steps FMU, BACnet sleeps)
             wait_duration = sleep_interval if sleep_interval else 1
-            self.controller.wait(wait_duration)
-            
+            self.controller.wait(wait_duration) 
             current_time = self.controller.get_current_time()
-                
+            remaining = condition['ClockTime'] - (current_time - st)            
+            
+        current_time = self.controller.get_current_time()
+        seconds_since_start = int(current_time - st)
+        for obj in Ramp.instances:
+            if obj.params['ramp_step']:                        
+                obj.set_value(seconds_since_start)                    
+
+        for obj in Periodic.instances:
+            # import pdb; pdb.set_trace()
+            if obj.params['periodic_step']:
+                obj.set_value(seconds_since_start)
+    
+        self.controller.final_step_wait(flex_duration = 0.0000001)
+        #self.controller.wait(wait_duration)
+        #Create a new function outside the wait function          
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
@@ -558,27 +595,38 @@ class Ramp(StateOperation):
     def get_parameter_dict(self):
         val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
-        self.params = {
-            "ramp_start": self.test.evaluate_expression(string_parameters[0]),
-            "ramp_end": self.test.evaluate_expression(string_parameters[1]),
-            "duration": self.test.evaluate_expression(string_parameters[2]),
-            "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
-            "ramp_period":self.test.evaluate_expression(string_parameters[3]),
-            "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
-        }
+        if len(string_parameters) < 4:
+            self.params = {
+                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
+                "duration": self.test.evaluate_expression(string_parameters[2]),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_period":10,
+                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+            }
+        else:
+            self.params = {
+                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
+                "duration": self.test.evaluate_expression(string_parameters[2]),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_period":self.test.evaluate_expression(string_parameters[3]),
+                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+            }
 
     def set_value(self, seconds_since_start):        
         ramp_start = self.params['ramp_start']
         ramp_end = self.params['ramp_end']
         ramp_rate = self.params['ramp_rate']
         ramp_period = self.params['ramp_period']
-
+        ramp_duration = self.params['duration']
         if seconds_since_start % ramp_period == 0:
             # import pdb; pdb.set_trace()
             current_period = (seconds_since_start / ramp_period)
             
             if ramp_start < ramp_end:
                 value_to_set = ramp_start + ramp_rate * current_period * ramp_period
+                print(f'RAMP_START is {ramp_rate}, RAMP_RATE is {ramp_rate}, SECONDS_SINCE_START is {seconds_since_start}')
                 if value_to_set > ramp_end:
                     value_to_set = ramp_end
             elif ramp_start > ramp_end:
@@ -588,11 +636,11 @@ class Ramp(StateOperation):
 
             current_value = self.test.controller.get_current_variable_value(self.variable)
             if current_value != None:
-                if round(value_to_set, 2) != round(current_value, 2):
+                if seconds_since_start <= ramp_duration:
+                #if round(value_to_set, 2) != round(current_value, 2):
                     var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
-                    print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
-                    print()
                     self.test.controller.set_single_point(self.variable, value_to_set)
+
 
 class Periodic(StateOperation):
     OP_TOKEN = "PERIODIC("
@@ -614,12 +662,20 @@ class Periodic(StateOperation):
     def get_parameter_dict(self):
         val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
-        self.params = {
-            "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
-            "periodic_expression": string_parameters[0],
-            "period": float(string_parameters[1]),
-            "periodic_step": True,
-        }
+        if len(string_parameters) < 2:
+            self.params = {
+                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_expression": string_parameters[0],
+                "period": 10,
+                "periodic_step": True,
+            }
+        else:    
+            self.params = {
+                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_expression": string_parameters[0],
+                "period": float(string_parameters[1]),
+                "periodic_step": True,
+            }
         
     def set_value(self, seconds_since_start):        
         periodic_expression = self.params['periodic_expression']
