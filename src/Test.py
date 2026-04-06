@@ -661,13 +661,9 @@ class Periodic(StateOperation):
         #import pdb; pdb.set_trace()
         if seconds_since_start % period == 0:
             value_to_set = self.test.evaluate_expression(expression=periodic_expression)
-            current_value = self.test.controller.get_current_variable_value(self.variable)
-            if current_value != None:
-                if round(value_to_set, 2) != round(current_value, 2):
-                    var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
-                    print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
-                    print()
-                    self.test.controller.set_single_point(self.variable, value_to_set)
+            var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
+            print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
+            self.test.controller.set_single_point(self.variable, value_to_set)
 
 class StateLessOperation:
     OP_TOKEN = None 
