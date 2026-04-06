@@ -86,7 +86,6 @@ class Test:
         self.current_step = None
         self.step_outputs = {}
 
-
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
         df_new = df.reset_index().drop([0], axis=1)
         cols = ['step%d' % i for i in range(len(df_new.columns) - 2)]
@@ -282,8 +281,6 @@ class Test:
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
             self.controller.set_single_point(key, value_to_set)
 
-    
-
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
 
         print("step = %d " % self.current_step)
@@ -305,7 +302,6 @@ class Test:
                         # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
                         self.print_points(to_csv=to_csv, name=name)
 
-
             for obj in Periodic.instances:
                 # import pdb; pdb.set_trace()
                 if obj.params['periodic_step']:
@@ -315,9 +311,6 @@ class Test:
                         self.controller.wait(duration=0.0000001)
                         # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
                         self.print_points(to_csv=to_csv, name=name)
-
-
-            
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClockTime']))
@@ -377,8 +370,7 @@ class Test:
                 obj.set_value(seconds_since_start)
     
         self.controller.wait(duration = 0.0000001)
-        #self.controller.wait(wait_duration)
-        #Create a new function outside the wait function          
+         
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
@@ -415,7 +407,6 @@ class Test:
                     actual_val = 0
                 else:
                     actual_val = 1
-
             
             elif type(expected_val) == str:
                 if "ANY" in expected_val:
@@ -486,8 +477,7 @@ class Test:
                 expression=sub_expr,
                 original_expression=original_expression,
             )
-            
-    
+
             # replace either "(…)" or "ADD(…)" with result
             expression = expression.replace(expression[func_start if func_name else s_loc : e_loc + 1],
                                             str(op),
@@ -546,7 +536,6 @@ class Test:
                     print("WARNING: cannot find variable to check %s"%expression)
                 return float_value
 
-
 class StateOperation:
     OP_TOKEN = None 
     def __init__(self, raw_string, test_obj, variable):
@@ -563,8 +552,6 @@ class StateOperation:
     def set_value(self):
         """Each operation computes a value at time t."""
         raise NotImplementedError
-    
-    
 
 class Ramp(StateOperation):
     OP_TOKEN = "RAMP("
@@ -583,8 +570,7 @@ class Ramp(StateOperation):
     @classmethod
     def destroy_all(cls):
         cls.instances.clear()
-    
-    
+
     def get_parameter_dict(self):
         val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
@@ -634,7 +620,6 @@ class Ramp(StateOperation):
                     var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
                     self.test.controller.set_single_point(self.variable, value_to_set)
 
-
 class Periodic(StateOperation):
     OP_TOKEN = "PERIODIC("
     instances = []
@@ -683,9 +668,6 @@ class Periodic(StateOperation):
                     print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
                     print()
                     self.test.controller.set_single_point(self.variable, value_to_set)
-    
-
-
 
 class StateLessOperation:
     OP_TOKEN = None 
@@ -807,7 +789,6 @@ class InterpolateOperation(StateLessOperation):
             return max(result, self.params['min_out'])
         else:
             return max(self.params['min_out'], min(result, self.params['max_out'])) 
-    
 
 if __name__ == "__main__":
 
