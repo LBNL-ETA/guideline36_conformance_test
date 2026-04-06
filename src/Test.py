@@ -175,14 +175,7 @@ class Test:
             print("Successfully set input values=================================")
             print()
 
-            step_start_time = self.controller.get_current_time()            
-            if self.current_step == 1 and self.controller.get_type() == 'simulation':
-                self.controller._initialize_sim()
-
-            if self.controller.get_type() == 'simulation':
-                step_start_time = self.controller.get_current_time()
-            else:
-                step_start_time = time.time()
+            step_start_time = self.controller.get_current_time()
             
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
             
