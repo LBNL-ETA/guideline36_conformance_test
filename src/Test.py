@@ -360,7 +360,7 @@ class Test:
                         self.print_points(to_csv=to_csv, name=name)
 
             # Wait and advance time (simulation steps FMU, BACnet sleeps)
-            wait_duration = sleep_interval if sleep_interval else 1
+            wait_duration = sleep_interval if sleep_interval else 10
             self.controller.wait(wait_duration) 
             current_time = self.controller.get_current_time()
             remaining = condition['ClockTime'] - (current_time - st)            
