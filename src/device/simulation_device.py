@@ -318,28 +318,37 @@ class SimulationDevice(BaseDevice):
                 else:
                     raise(ValueError, 'Problem finding data for point {0} in simulation results.'.format(point_name))
 
-    def wait(self, duration):        
+    def wait(self, duration=None):    
+        '''Implements the wait() function for simulation-based device with non-sticky duration.
+
+        Parameters
+        ----------
+        duration : int or None, optional
+            Specifies how long to advanced the simulation for.
+            If None, uses default step from Simcdl.
+            Default is None.
+
+        '''
+
+        # Check that simulation has been initialized already
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
-    
+        # Check if need to change the advance duration from default
+        if duration is not None:
+            _, _, previous_step_duration = self.sim.get_step()                        
+            _, _, _ = self.sim.set_step(duration)
+        # Update input and parameter values
         self.populate_input_and_parameters()
-    
+        # Simulate and capture results payload
+        status, message, payload = self.sim.advance(self.u)
+        # Check if need to change the advance duration back to degault
+        if duration is not None:
+            self.sim.set_step(previous_step_duration)  
+        # Update simulation started flag
         if not self._simulation_started:
             self._simulation_started = True
-    
-        # Capture payload
-        status, message, payload = self.sim.advance(self.u)
-        
-        self.populate_points_post_simulation()
-
-    def final_step_wait(self, flex_duration = 0):
-        _, _, previous_step_duration = self.sim.get_step()                        
-        self.populate_input_and_parameters()            
-        _, _, _ = self.sim.set_step(flex_duration)
-        #import pdb; pdb.set_trace()
-        status, message, payload = self.sim.advance(self.u)
-        self.populate_points_post_simulation()
-        self.sim.set_step(previous_step_duration)            
+        # Update points values after simulation
+        self.populate_points_post_simulation()         
     
     def _initialize_sim(self, save_point_properties=True):
         """

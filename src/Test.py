@@ -176,11 +176,11 @@ class Test:
             print()
 
             step_start_time = self.controller.get_current_time()
-            
+
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
             
             if self.controller.get_type() == 'simulation':
-                self.controller.final_step_wait(flex_duration=0.0000001)
+                self.controller.wait(duration=0.0000001)
                       
             actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
             for k, v in actual_outputs.items():
@@ -301,7 +301,7 @@ class Test:
                     obj.set_value(seconds_since_start)   
                     
                     if device_type == 'simulation':
-                        self.controller.final_step_wait(flex_duration=0.0000001)
+                        self.controller.wait(duration=0.0000001)
                         # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
                         self.print_points(to_csv=to_csv, name=name)
 
@@ -312,7 +312,7 @@ class Test:
                     obj.set_value(seconds_since_start)                     
                     # >>> ADDED: immediately advance by epsilon after periodic change
                     if device_type == 'simulation':
-                        self.controller.final_step_wait(flex_duration=0.0000001)
+                        self.controller.wait(duration=0.0000001)
                         # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
                         self.print_points(to_csv=to_csv, name=name)
 
@@ -376,7 +376,7 @@ class Test:
             if obj.params['periodic_step']:
                 obj.set_value(seconds_since_start)
     
-        self.controller.final_step_wait(flex_duration = 0.0000001)
+        self.controller.wait(duration = 0.0000001)
         #self.controller.wait(wait_duration)
         #Create a new function outside the wait function          
         print("test condition finished")
