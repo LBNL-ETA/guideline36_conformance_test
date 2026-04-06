@@ -725,10 +725,8 @@ class TwoTermOperation(StateLessOperation):
         }
 
     def set_value(self):
-        self.computed_value = self._apply(
-            self.params["first_term"],
-            self.params["second_term"],
-        )
+        self.computed_value = self._apply(self.params["first_term"],
+                                          self.params["second_term"])
 
     def _apply(self, a, b):
         """Child classes must define the actual operation"""
@@ -739,7 +737,6 @@ class Add(TwoTermOperation):
 
     def _apply(self, a, b):    
         return a + b
-
 
 class Sub(TwoTermOperation):
     OP_TOKEN = "SUB("
@@ -754,26 +751,22 @@ class Mul(TwoTermOperation):
 class InterpolateOperation(StateLessOperation):
     OP_TOKEN = "INTERPOLATE("
     def get_parameter_dict(self):
-        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
-        #string_parameters = val.split(";")        
-        
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]      
         string_parameters = self.split_top_level_semicolons(val)
         string_parameters = [s.replace(' ', '') for s in string_parameters]
-        interpolate_params_dict = {}
-        interpolate_params_dict['x'] = self.test.evaluate_expression(expression=string_parameters[0])
-        interpolate_params_dict['x0'] = self.test.evaluate_expression(expression=string_parameters[1])        
-        interpolate_params_dict['x1'] = self.test.evaluate_expression(expression=string_parameters[2])        
-        interpolate_params_dict['y0'] = self.test.evaluate_expression(expression=string_parameters[3])        
-        interpolate_params_dict['y1'] = self.test.evaluate_expression(expression=string_parameters[4]) 
+        self.params['x'] = self.test.evaluate_expression(expression=string_parameters[0])
+        self.params['x0'] = self.test.evaluate_expression(expression=string_parameters[1])        
+        self.params['x1'] = self.test.evaluate_expression(expression=string_parameters[2])        
+        self.params['y0'] = self.test.evaluate_expression(expression=string_parameters[3])        
+        self.params['y1'] = self.test.evaluate_expression(expression=string_parameters[4]) 
         if len(string_parameters) > 5:
-            interpolate_params_dict['min_out'] = self.test.evaluate_expression(expression=string_parameters[5]) 
+            self.params['min_out'] = self.test.evaluate_expression(expression=string_parameters[5]) 
         else:
-            interpolate_params_dict['min_out'] = None        
+            self.params['min_out'] = None        
         if len(string_parameters) > 6:
-            interpolate_params_dict['max_out'] = self.test.evaluate_expression(expression=string_parameters[6]) 
+            self.params['max_out'] = self.test.evaluate_expression(expression=string_parameters[6]) 
         else:
-            interpolate_params_dict['max_out'] = None
-        self.params = interpolate_params_dict
+            self.params['max_out'] = None
         
     def set_value(self):
         self.computed_value = self._apply()        
