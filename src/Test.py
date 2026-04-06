@@ -612,13 +612,8 @@ class Ramp(StateOperation):
                 value_to_set = ramp_start - ramp_rate * current_period * ramp_period
                 if value_to_set < ramp_end:
                     value_to_set = ramp_end
-
-            current_value = self.test.controller.get_current_variable_value(self.variable)
-            if current_value != None:
-                if seconds_since_start <= ramp_duration:
-                #if round(value_to_set, 2) != round(current_value, 2):
-                    var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
-                    self.test.controller.set_single_point(self.variable, value_to_set)
+            if seconds_since_start <= ramp_duration:
+                self.test.controller.set_single_point(self.variable, value_to_set)
 
 class Periodic(StateOperation):
     OP_TOKEN = "PERIODIC("
