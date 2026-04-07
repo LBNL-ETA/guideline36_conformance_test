@@ -194,7 +194,7 @@ class Test:
                 if not assertion_op:
                     end_time = self.controller.get_current_time()
                     time_elapsed = round((end_time - start_time)/60, 2)
-                    print("Test failed! Total time = %f minutes"%round(time_elapsed, 2))
+                    print("Test failed at test step %d! Total time = %f minutes"%(i, round(time_elapsed, 2)))
                     self.save_test_times(to_csv=to_csv, name=name, step=-1, st=start_time, et=end_time,
                                          duration=time_elapsed)
                     Ramp.destroy_all()
