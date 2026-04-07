@@ -286,32 +286,30 @@ class Test:
         current_time = self.controller.get_current_time()
         last_print = None
         condition_met = False
+        # Check if time condition is met to end test step
         while current_time - st < condition['ClockTime']:
-
             seconds_since_start = int(current_time - st)
-                
-            #iterate over all StateOperation instances and call set_value
+            # Compute and set new input values for all ramps and periodics at this step
             for obj in Ramp.instances:
                 if obj.params['ramp_step']:                        
                     obj.compute_value(seconds_since_start)
                     self.controller.set_single_point(obj.variable, obj.computed_value)
-
             for obj in Periodic.instances:
-                # import pdb; pdb.set_trace()
                 if obj.params['periodic_step']:
                     obj.compute_value(seconds_since_start)
                     self.controller.set_single_point(obj.variable, obj.computed_value)
-
+            # Once new values set, let controller update outputs
             self.controller.wait(duration=0.0000001)
+            # Save point values
             self.print_points(to_csv=to_csv, name=name)
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClockTime']))
 
+            # Check if variable condition met to end test step
             if pd.notna(condition['VariableName']):
                 output_variable_to_check = condition['VariableName']
                 output_value_to_check = condition['VariableValue']
-
                 if type(output_value_to_check) == str:
                     operator = re.findall(r"\A\D+", output_value_to_check)
                     if len(operator) == 1:
@@ -319,29 +317,25 @@ class Test:
                     else:
                         #TODO: handle this better
                         raise Exception("Invalid condition value in step %d for variable %s"%(self.current_step, output_variable_to_check))
-
                     output_value_to_check = float(output_value_to_check.split(operator)[1])
                     output_value_to_check = self.controller.convert_value_test_unit_to_device_unit(output_variable_to_check, output_value_to_check)
-
                 else:
                     operator = ">="
-
                 actual_output_variable_value = self.controller.get_current_variable_value(output_variable_to_check)
-
+                # If condition met, end test step
                 if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=output_value_to_check):
                     print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, output_value_to_check))
                     print()
+
                     return
 
-            # Wait and advance time (simulation steps FMU, BACnet sleeps)
+            # If time and variable conditions not met to end test step, wait and advance time
             wait_duration = sleep_interval if sleep_interval else 10
             self.controller.wait(wait_duration) 
-            current_time = self.controller.get_current_time()
-            remaining = condition['ClockTime'] - (current_time - st)            
+            current_time = self.controller.get_current_time()         
 
-            # Print progress periodically (every minute for BACnet, every step for simulation)
-            device_type = self.controller.get_type()                        
-            
+            # Save point values (every minute for BACnet, every step for simulation)
+            device_type = self.controller.get_type()
             if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
@@ -350,22 +344,22 @@ class Test:
                         last_print = seconds_since_start/60
                         print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
                         self.print_points(to_csv=to_csv, name=name)
-
+        # If time condition met, end test step
+        # Update current time
         current_time = self.controller.get_current_time()
         seconds_since_start = int(current_time - st)
+        # Compute and set new input values for all ramps and periodics a final time at this step
         for obj in Ramp.instances:
             if obj.params['ramp_step']:                        
                 obj.compute_value(seconds_since_start)   
-                self.controller.set_single_point(obj.variable, obj.computed_value)                 
-
+                self.controller.set_single_point(obj.variable, obj.computed_value)        
         for obj in Periodic.instances:
-            # import pdb; pdb.set_trace()
             if obj.params['periodic_step']:
                 obj.compute_value(seconds_since_start)
                 self.controller.set_single_point(obj.variable, obj.computed_value)
-    
+        # Once new values set, let controller update outputs
         self.controller.wait(duration = 0.0000001)
-         
+        
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
