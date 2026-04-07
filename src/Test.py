@@ -177,15 +177,13 @@ class Test:
             step_start_time = self.controller.get_current_time()
 
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
-                      
-            actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
-            for k, v in actual_outputs.items():
-                print(f"  [comparison] {k} = {v}")
             
             print("Conditions met. Current values = ")
             self.print_points(to_csv=to_csv, name=name)
 
-            actual_outputs = self.get_current_variable_values(variable_list = self.op.columns.values)
+            actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
+            for k, v in actual_outputs.items():
+                print(f"  [comparison] {k} = {v}")
             self.step_outputs[self.current_step] = actual_outputs
 
             if i > 1:
