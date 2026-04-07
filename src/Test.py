@@ -177,9 +177,6 @@ class Test:
             step_start_time = self.controller.get_current_time()
 
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
-            
-            if self.controller.get_type() == 'simulation':
-                self.controller.wait(duration=0.0000001)
                       
             actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
             for k, v in actual_outputs.items():
