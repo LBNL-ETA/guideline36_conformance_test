@@ -332,7 +332,13 @@ class Test:
                     print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, output_value_to_check))
                     print()
                     return
-            
+
+            # Wait and advance time (simulation steps FMU, BACnet sleeps)
+            wait_duration = sleep_interval if sleep_interval else 10
+            self.controller.wait(wait_duration) 
+            current_time = self.controller.get_current_time()
+            remaining = condition['ClockTime'] - (current_time - st)            
+
             # Print progress periodically (every minute for BACnet, every step for simulation)
             device_type = self.controller.get_type()                        
             
@@ -345,12 +351,6 @@ class Test:
                         print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
                         self.print_points(to_csv=to_csv, name=name)
 
-            # Wait and advance time (simulation steps FMU, BACnet sleeps)
-            wait_duration = sleep_interval if sleep_interval else 10
-            self.controller.wait(wait_duration) 
-            current_time = self.controller.get_current_time()
-            remaining = condition['ClockTime'] - (current_time - st)            
-            
         current_time = self.controller.get_current_time()
         seconds_since_start = int(current_time - st)
         for obj in Ramp.instances:
