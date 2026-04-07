@@ -212,12 +212,6 @@ class SimulationDevice(BaseDevice):
         # Convert from test units to device units
         converted_value = self._unit_conversion(value, point.unit, point.point_type)
         
-        # Store in appropriate dictionary
-        if point.causality == 'Parameter':
-            self.parameters[point_name] = converted_value
-        else:
-            self.u[point_name] = converted_value
-        
         # Update cached value
         self._cache_point_value(point_name, converted_value)
 
@@ -241,19 +235,31 @@ class SimulationDevice(BaseDevice):
         if not self._simulation_started:
             self._cache_point_value(variable_name, None)
             return None
+    
+        # Try direct key match (CDL path)
+        point = self.points.get(variable_name)
+        if point is not None and point.value is not None:
+            return point.value    
         
         _, _, current_time = self.sim.get_current_time()
         _, _, step = self.sim.get_step()
-        
         start_time = current_time - step
         final_time = current_time
-        
+    
         _, _, data = self.sim.get_results([variable_name], start_time, final_time)
-        
         value = data[variable_name][-1]
         self._cache_point_value(variable_name, value)
-        
+    
         return value
+    
+    def get_variable_value_from_prev_time_step(self, var):
+        _,_,current_time = self.sim.get_current_time()
+        _,_,step = self.sim.get_step()
+        start_time = current_time - 2 * step
+        final_time = current_time - step
+        _,_,data = self.sim.get_results([var], start_time, final_time)
+
+        return data[var][-1]
 
     def convert_value_test_unit_to_device_unit(self, point_name, value):   # not being used!
         """
@@ -290,31 +296,60 @@ class SimulationDevice(BaseDevice):
         _, _, current_time = self.sim.get_current_time()
         return current_time
     
-    def wait(self, duration):
-        """
-        Advance simulation by one step.
-        
-        On the first call, this will initialize the simulation with current
-        input values before advancing. 
-        
-        The test script loop handles calling this repeatedly until conditions are met.
-        Duration parameter is ignored for simulation devices (step size is fixed).
-        
+    def populate_input_and_parameters(self):
+        for point_name, point in self.points.items():
+            if point.value is None:
+                continue
+            if point.causality == 'Input':
+                self.u[point_name] = point.value
+            elif point.causality == 'Parameter':
+                self.parameters[point_name] = point.value
+                
+    def populate_points_post_simulation(self):
+        _, _, current_time = self.sim.get_current_time()
+        _, _, step = self.sim.get_step()
+        start_time = current_time - step
+        final_time = current_time
+        for point_name, point in self.points.items():
+            status, _, data = self.sim.get_results([point_name], start_time, final_time)
+            if status == 200:
+                value = data[point_name][-1]
+                self._cache_point_value(point_name, value)
+            else:
+                raise(ValueError, 'Problem finding data for point {0} in simulation results.'.format(point_name))
+
+    def wait(self, duration=None):    
+        '''Implements the wait() function for simulation-based device with non-sticky duration.
+
         Parameters
         ----------
-        duration
-            Ignored for simulation devices (kept for interface compatibility)
-        """
+        duration : int or None, optional
+            Specifies how long to advanced the simulation for.
+            If None, uses default step from Simcdl.
+            Default is None.
+
+        '''
+
+        # Check that simulation has been initialized already
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
-        
-        # On first call, initialize simulation state with current inputs
+        # Check if need to change the advance duration from default
+        if duration is not None:
+            _, _, previous_step_duration = self.sim.get_step()                        
+            _, _, _ = self.sim.set_step(duration)
+        # Update input and parameter values
+        self.populate_input_and_parameters()
+        # Simulate and capture results payload
+        status, message, payload = self.sim.advance(self.u)
+        # Check if need to change the advance duration back to degault
+        if duration is not None:
+            self.sim.set_step(previous_step_duration)  
+        # Update simulation started flag
         if not self._simulation_started:
             self._simulation_started = True
-        
-        # Advance one step - the test loop will call this repeatedly
-        self.advance_sim()
-
+        # Update points values after simulation
+        self.populate_points_post_simulation()         
+    
     def _initialize_sim(self, save_point_properties=True):
         """
         Initialize the FMU simulation (private method).
@@ -354,6 +389,7 @@ class SimulationDevice(BaseDevice):
             raise RuntimeError("Simulation not initialized")
         
         status, message, payload = self.sim.advance(self.u)
+        return payload
 
     def _compile_fmu(self, model_filepath, model_name, fmu_path, parameters):
         """
