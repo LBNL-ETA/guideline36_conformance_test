@@ -240,31 +240,29 @@ class Test:
                     op = Ramp(raw_string=val, test_obj=self, variable=key)
                     op.get_parameter_dict()                    
                     value_to_set = op.params['ramp_start']
-                    #value_to_set = op.set_value(seconds_since_start = 0)
                 elif "=PERIODIC(" in val:
                     op = Periodic(raw_string=val, test_obj=self, variable=key)
                     op.get_parameter_dict()                    
                     value_to_set = op.params['periodic_start']
-                    #value_to_set = op.set_value(seconds_since_start = 0)
                 elif "=INTERPOLATE(" in val:                    
                     op = InterpolateOperation(raw_string=val, test_obj=self)                    
                     op.get_parameter_dict()
-                    op.set_value()
+                    op.compute_value()
                     value_to_set = op.computed_value
                 elif "=ADD(" in val:                    
                     op = Add(raw_string=val, test_obj=self)
                     op.get_parameter_dict()
-                    op.set_value()
+                    op.compute_value()
                     value_to_set = op.computed_value                
                 elif "=SUB(" in val:                    
                     op = Sub(raw_string=val, test_obj=self)
                     op.get_parameter_dict()
-                    op.set_value()
+                    op.compute_value()
                     value_to_set = op.computed_value
                 elif "=MULT(" in val:                    
                     op = Mul(raw_string=val, test_obj=self)
                     op.get_parameter_dict()
-                    op.set_value()
+                    op.compute_value()
                     value_to_set = op.computed_value  
                 elif "=LAST" in val:
                     expression = val[1:]
@@ -295,12 +293,14 @@ class Test:
             #iterate over all StateOperation instances and call set_value
             for obj in Ramp.instances:
                 if obj.params['ramp_step']:                        
-                    obj.set_value(seconds_since_start)
+                    obj.compute_value(seconds_since_start)
+                    self.controller.set_single_point(obj.variable, obj.computed_value)
 
             for obj in Periodic.instances:
                 # import pdb; pdb.set_trace()
                 if obj.params['periodic_step']:
-                    obj.set_value(seconds_since_start)
+                    obj.compute_value(seconds_since_start)
+                    self.controller.set_single_point(obj.variable, obj.computed_value)
 
             self.controller.wait(duration=0.0000001)
             self.print_points(to_csv=to_csv, name=name)
@@ -355,12 +355,14 @@ class Test:
         seconds_since_start = int(current_time - st)
         for obj in Ramp.instances:
             if obj.params['ramp_step']:                        
-                obj.set_value(seconds_since_start)                    
+                obj.compute_value(seconds_since_start)   
+                self.controller.set_single_point(obj.variable, obj.computed_value)                 
 
         for obj in Periodic.instances:
             # import pdb; pdb.set_trace()
             if obj.params['periodic_step']:
-                obj.set_value(seconds_since_start)
+                obj.compute_value(seconds_since_start)
+                self.controller.set_single_point(obj.variable, obj.computed_value)
     
         self.controller.wait(duration = 0.0000001)
          
@@ -418,7 +420,7 @@ class Test:
                 elif "INTERPOLATE(" in expected_val:
                     op = InterpolateOperation(raw_string=expected_val, test_obj=self)
                     op.get_parameter_dict()                    
-                    op.set_value()
+                    op.compute_value()
                     expected_value = op.computed_value                                         
                 elif expected_val.startswith("="):
                     expression = expected_val[1:]
@@ -542,7 +544,7 @@ class StateOperation:
         """Each child overrides this to extract parameters from the raw string."""
         raise NotImplementedError        
 
-    def set_value(self):
+    def compute_value(self):
         """Each operation computes a value at time t."""
         raise NotImplementedError
 
@@ -586,7 +588,7 @@ class Ramp(StateOperation):
                 "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
             }
 
-    def set_value(self, seconds_since_start):        
+    def compute_value(self, seconds_since_start):        
         ramp_start = self.params['ramp_start']
         ramp_end = self.params['ramp_end']
         ramp_rate = self.params['ramp_rate']
@@ -606,7 +608,7 @@ class Ramp(StateOperation):
                 if value_to_set < ramp_end:
                     value_to_set = ramp_end
             if seconds_since_start <= ramp_duration:
-                self.test.controller.set_single_point(self.variable, value_to_set)
+                self.computed_value = value_to_set
 
 class Periodic(StateOperation):
     OP_TOKEN = "PERIODIC("
@@ -643,7 +645,7 @@ class Periodic(StateOperation):
                 "periodic_step": True,
             }
         
-    def set_value(self, seconds_since_start):        
+    def compute_value(self, seconds_since_start):        
         periodic_expression = self.params['periodic_expression']
         period = self.params['period']
         #import pdb; pdb.set_trace()
@@ -651,7 +653,7 @@ class Periodic(StateOperation):
             value_to_set = self.test.evaluate_expression(expression=periodic_expression)
             var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
             print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
-            self.test.controller.set_single_point(self.variable, value_to_set)
+            self.computed_value = value_to_set
 
 class StateLessOperation:
     OP_TOKEN = None 
@@ -665,7 +667,7 @@ class StateLessOperation:
         """Each child overrides this to extract parameters from the raw string."""
         raise NotImplementedError        
 
-    def set_value(self):
+    def compute_value(self):
         """Each operation computes a value at time t."""
         raise NotImplementedError
         
@@ -708,7 +710,7 @@ class TwoTermOperation(StateLessOperation):
             "second_term": self.test.evaluate_expression(string_parameters[1]),
         }
 
-    def set_value(self):
+    def compute_value(self):
         self.computed_value = self._apply(self.params["first_term"],
                                           self.params["second_term"])
 
@@ -752,7 +754,7 @@ class InterpolateOperation(StateLessOperation):
         else:
             self.params['max_out'] = None
         
-    def set_value(self):
+    def compute_value(self):
         self.computed_value = self._apply()        
                 
     def _apply(self):
