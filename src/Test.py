@@ -182,8 +182,6 @@ class Test:
             self.print_points(to_csv=to_csv, name=name)
 
             actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
-            for k, v in actual_outputs.items():
-                print(f"  [comparison] {k} = {v}")
             self.step_outputs[self.current_step] = actual_outputs
 
             if i > 1:
