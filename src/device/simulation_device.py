@@ -308,15 +308,13 @@ class SimulationDevice(BaseDevice):
         _, _, step = self.sim.get_step()
         start_time = current_time - step
         final_time = current_time
-        ####
         for point_name, point in self.points.items():
-            if point.causality in ('Input', 'Output'):
-                status, _, data = self.sim.get_results([point_name], start_time, final_time)
-                if status == 200:
-                    value = data[point_name][-1]
-                    self._cache_point_value(point_name, data[point_name][-1])
-                else:
-                    raise(ValueError, 'Problem finding data for point {0} in simulation results.'.format(point_name))
+            status, _, data = self.sim.get_results([point_name], start_time, final_time)
+            if status == 200:
+                value = data[point_name][-1]
+                self._cache_point_value(point_name, value)
+            else:
+                raise(ValueError, 'Problem finding data for point {0} in simulation results.'.format(point_name))
 
     def wait(self, duration=None):    
         '''Implements the wait() function for simulation-based device with non-sticky duration.
