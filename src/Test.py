@@ -295,22 +295,15 @@ class Test:
             #iterate over all StateOperation instances and call set_value
             for obj in Ramp.instances:
                 if obj.params['ramp_step']:                        
-                    obj.set_value(seconds_since_start)   
-                    
-                    if device_type == 'simulation':
-                        self.controller.wait(duration=0.0000001)
-                        # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
-                        self.print_points(to_csv=to_csv, name=name)
+                    obj.set_value(seconds_since_start)
 
             for obj in Periodic.instances:
                 # import pdb; pdb.set_trace()
                 if obj.params['periodic_step']:
-                    obj.set_value(seconds_since_start)                     
-                    # >>> ADDED: immediately advance by epsilon after periodic change
-                    if device_type == 'simulation':
-                        self.controller.wait(duration=0.0000001)
-                        # >>> ADDED: print right after epsilon so the CSV/log reflect y at t+ε
-                        self.print_points(to_csv=to_csv, name=name)
+                    obj.set_value(seconds_since_start)
+
+            self.controller.wait(duration=0.0000001)
+            self.print_points(to_csv=to_csv, name=name)
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClockTime']))
