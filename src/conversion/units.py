@@ -21,6 +21,7 @@ def unit(q: str | Q, explicit=True): # explict. don't want pint to interpret/par
                 'percent':  reg('percent'),
                 '1':        reg(''),
                 'ppm':      reg('ppm'),
+                'dimensionless': reg(''),
             }
             for d in ('F', 'C', ): # but not 'K' b/c it doesn't have an offset
                 assert(d in to_pint)

@@ -316,7 +316,7 @@ class SimulationDevice(BaseDevice):
                 value = data[point_name][-1]
                 self._cache_point_value(point_name, value)
             else:
-                raise(ValueError, 'Problem finding data for point {0} in simulation results.'.format(point_name))
+                raise ValueError('Problem finding data for point {0} in simulation results.'.format(point_name))
 
     def wait(self, duration=None):    
         '''Implements the wait() function for simulation-based device with non-sticky duration.
@@ -466,12 +466,13 @@ class SimulationDevice(BaseDevice):
             'dF':       'K', 
             'percent':  '1',
             'gpm':      'm3/s',
-            'ppm':      'ppm', # ?
+            'ppm':      'ppm',
+            'dimensionless': '1'
             }
+
         if unit in map:
             return convert(value, unit, map[unit] ).magnitude
 
-        
         # Handle string/boolean conversions
         if isinstance(value, str):
             return self._convert_state(value)
