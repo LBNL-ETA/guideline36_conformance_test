@@ -7,12 +7,14 @@ models compiled to FMU format using OpenModelica.
 
 from src.device.base_device import BaseDevice, Point
 from src.device.Simcdl import Simcdl
+from src.conversion.units import convert
 import subprocess
 import time
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from loguru import logger
+
 
 
 class SimulationDevice(BaseDevice):
@@ -259,7 +261,7 @@ class SimulationDevice(BaseDevice):
 
         return data[var][-1]
 
-    def convert_value_test_unit_to_device_unit(self, point_name, value):
+    def convert_value_test_unit_to_device_unit(self, point_name, value):   # not being used!
         """
         Convert a value from test units to device (FMU) units.
         
@@ -314,7 +316,7 @@ class SimulationDevice(BaseDevice):
                 value = data[point_name][-1]
                 self._cache_point_value(point_name, value)
             else:
-                raise(ValueError, 'Problem finding data for point {0} in simulation results.'.format(point_name))
+                raise ValueError('Problem finding data for point {0} in simulation results.'.format(point_name))
 
     def wait(self, duration=None):    
         '''Implements the wait() function for simulation-based device with non-sticky duration.
@@ -458,53 +460,28 @@ class SimulationDevice(BaseDevice):
         -------
         Converted value in CDL units
         """
-        # Handle numeric conversions
-        if unit == 'cfm' and isinstance(value, (int, float, np.int64)):
-            return self._cfm_to_m3_s(value)
-        elif unit == 'F' and isinstance(value, (int, float, np.int64)):
-            return self._F_to_K(value)
-        elif unit == 'dF' and isinstance(value, (int, float, np.int64)):
-            return self._dF_to_dK(value)
-        elif unit == 'percent' and isinstance(value, (int, float, np.int64)):
-            return self._percent_to_one(value)
-        
+        map = {
+            'cfm':      'm3/s',
+            'F':        'K',
+            'dF':       'K', 
+            'percent':  '1',
+            'gpm':      'm3/s',
+            'ppm':      'ppm',
+            'dimensionless': '1'
+            }
+
+        if unit in map:
+            return convert(value, unit, map[unit] ).magnitude
+
         # Handle string/boolean conversions
         if isinstance(value, str):
-            value_to_set = True
-            if value.lower() in ['closed', 'present', 'on']:
-                value_to_set = True
-            elif value.lower() in ['open', 'absent', 'off']:
-                value_to_set = False
-            
-            # FMU expects numeric values (1.0/0.0) for booleans, not string "true"/"false"
-            return 1.0 if value_to_set else 0.0
+            return self._convert_state(value)
         
-        return value
+        # everything should map (explicitly)
+        raise Exception('unhandled conversion')
 
-    @staticmethod
-    def _cfm_to_m3_s(cfm):
-        """Convert cubic feet per minute to cubic meters per second."""
-        return cfm * 0.0283168 * (1 / 60)
-
-    @staticmethod
-    def _F_to_K(F):
-        """Convert degrees Fahrenheit to Kelvin."""
-        return (F - 32) * 5 / 9 + 273.15
-
-    @staticmethod
-    def _dF_to_dK(dF):
-        """
-        Convert temperature difference in Fahrenheit to Kelvin.
+    from ..conversion.state import convert as _
+    _convert_state = staticmethod(_); del _
         
-        Uses 70°F as reference point.
-        """
-        F1 = 70
-        F2 = 70 + dF
-        K1 = SimulationDevice._F_to_K(F1)
-        K2 = SimulationDevice._F_to_K(F2)
-        return K2 - K1
 
-    @staticmethod
-    def _percent_to_one(percent):
-        """Convert percentage (0-100) to fraction (0-1)."""
-        return percent / 100
+

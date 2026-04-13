@@ -4,7 +4,8 @@ pandas
 numpy<2.0  # PyFMI requires numpy < 2.0 (uses removed np.compat.asbytes)
 openpyxl
 loguru
-pathlib
+pathlib  # TODO: dont need this
 python > 3.9
+pint
 # FMU Management
 pyfmi
