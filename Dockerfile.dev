@@ -9,6 +9,13 @@ ENV PATH=$PATH:/root/.pixi/bin
 # not oci std 
 ## SHELL [ "/bin/bash" , "-c" ] 
 
+RUN echo "#!/bin/bash" >            /root/.pixi/bin/denv
+RUN echo "set -eu" >>               /root/.pixi/bin/denv
+RUN echo 'pixi shell -e "$1"' >>    /root/.pixi/bin/denv
+RUN chmod +x                        /root/.pixi/bin/denv
+ENTRYPOINT [ "denv" ]
+
+
 # you'd do things like this for 'prod'
 # RUN mkdir /${BLDENV}
 # WORKDIR /${BLDENV}
