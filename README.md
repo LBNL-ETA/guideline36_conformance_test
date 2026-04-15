@@ -22,7 +22,7 @@ $ docker compose up dev -d
 Attach to the container interactively in the right working directory:
 
 ```
-$ docker compose exec -w /work dev bash -c "/root/.pixi/bin/pixi shell -e simulation"
+$ docker compose exec -w /work dev bash -c "pixi shell -e simulation"
 ```
 Run a test(s) as described in the section "Run a Test."
 

@@ -5,6 +5,7 @@ RUN apt-get update
 
 RUN apt-get install -y curl
 RUN curl -fsSL https://pixi.sh/install.sh | bash
+ENV PATH=$PATH:/root/.pixi/bin
 # not oci std 
 ## SHELL [ "/bin/bash" , "-c" ] 
 
