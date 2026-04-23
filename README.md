@@ -49,19 +49,54 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
 
 
 ### Run a Test
-1. Configure the test:
 
-    - Save test script to `files/` and save point map to `files/simcdl/`.
+1. Set up global configuration:
 
-    - Copy `src/config_template_simcdl.yaml` to `src/config.yaml` (or custom name) and fill in the necessary configuration information.
+    - Copy `config/global_config_template.yaml` to `config/global_config.yaml` and fill in:
+        - `test_type`: which conformance test to run (e.g., `vav_rh`)
+        - `device_type`: `simulation` or `bacnet`
+        - `test_runner` options: `save_csv`, `print_output`, `reset_points`
 
-    - Configure `src/Test.py` function `__main__` to use `src/config.yaml` (or custom name), upon instantiation of `Test`.
+2. Configure the specific test:
 
-2. Start the test: 
+    - Copy `conformance_tests/{test_type}/config/config_template.yaml` to `config.yaml` in the same directory and fill in:
+        - Device settings for both simulation and bacnet
+        - Test script filename
+        - Point mapping file path
+
+3. Prepare test files:
+
+    - Save test script (Excel file) to `conformance_tests/{test_type}/test_scripts/`
+    - Save point mapping file (CSV) to `conformance_tests/{test_type}/config/`
+    - For simulation: place Modelica (.mo) or FMU files in `conformance_tests/{test_type}/simulation_files/`
+
+4. Run the test:
 
     ```
-    $ python src/Test.py
+    ❯ python -m src.Test --help
+    usage: python.exe -m src.Test [-h] [--global-config GLOBAL_CONFIG]
+                                [--test-config TEST_CONFIG] [--reset]
+                                [--output] [--csv] [--name NAME]
+
+    Run ASHRAE Guideline 36 conformance tests
+
+    options:
+    -h, --help            show this help message and exit
+    --global-config GLOBAL_CONFIG
+                            path to global config file (default:
+                            config/global_config.yaml)
+    --test-config TEST_CONFIG
+                            path to test-specific config file (default:
+                            determined from test_type)
+    --reset               reset point values to first stage
+                            (overrides config)
+    --output              print point values without running test
+                            (overrides config)
+    --csv                 save outputs to csv (overrides config)
+    --name NAME           test run name (overrides config)
     ```
+
+Results will be saved to `conformance_tests/{test_type}/results/`
 
 ## Copyright Notice
 

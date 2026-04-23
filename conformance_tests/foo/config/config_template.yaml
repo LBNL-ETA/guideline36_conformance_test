@@ -1,0 +1,80 @@
+# =============================================================================
+# VAV REHEAT CONFORMANCE TEST - Configuration Template
+# =============================================================================
+# This configuration file defines device connection settings and test parameters
+# for the VAV Reheat conformance test.
+#
+# SETUP INSTRUCTIONS:
+# 1. Copy this file to 'config.yaml' in the same directory
+# 2. Fill in the device configuration sections for both simulation and bacnet
+# 3. Update the test script filename if needed
+# 4. Set device_type in config/global_config.yaml (simulation or bacnet)
+# 5. Run: python src/Test.py [options]
+
+# Test type identifier (must match directory name)
+test_type: foo
+
+# =============================================================================
+# DEVICE CONFIGURATIONS
+# =============================================================================
+# Configure BOTH device types below. The global_config.yaml device_type setting
+# determines which configuration is used at runtime.
+
+device:
+  # ---------------------------------------------------------------------------
+  # Simulation Device Configuration (FMU/Modelica Model)
+  # ---------------------------------------------------------------------------
+  simulation:
+    # Path to the Modelica model file (.mo)
+    # Can be absolute or relative to project root
+    model_filepath: conformance_tests/foo/simulation_files/testscript_foo_fmu.mo
+    
+    # Modelica path to the model within the .mo file
+    model_mopath: testscript_foo_fmu
+    
+    # Whether to compile FMU from .mo file
+    # Options: true (compile from .mo), false (use existing .fmu)
+    compile_fmu: true
+    
+    # Path to compiled FMU file (optional, auto-generated if not specified)
+    # Build artifacts will be written to simulation_files/build/
+    fmu_filepath: conformance_tests/foo/simulation_files/build/testscript_foo_fmu.fmu
+    
+    # Point mapping file - maps test variable names to CDL paths
+    # CSV format: header on row 4, columns include 'Variable Name', 'CDL Block', 'CDL Name', etc.
+    # Can be absolute or relative to project root
+    point_map: conformance_tests/foo/config/pointmap-foo.csv
+    
+
+  # ---------------------------------------------------------------------------
+  # BACnet Device Configuration (Physical or Virtual Controller)
+  # ---------------------------------------------------------------------------
+  bacnet:
+    # BACnet network IP address
+    network_address: 192.168.1.100
+    
+    # BACnet device address (integer)
+    device_address: 100
+    
+    # BACnet device ID (integer)
+    device_id: 123456
+    
+    # Point mapping file - maps test variable names to BACnet point names
+    # CSV format: header on row 4, columns include 'Variable Name', 'BACnet Name'
+    # Can be absolute or relative to project root
+    point_map: conformance_tests/vav_rh/config/point_mapping_bacnet.csv
+
+
+# =============================================================================
+# TEST CONFIGURATION
+# =============================================================================
+test:
+  # Test script Excel file
+  # Path relative to conformance_tests/vav_rh/test_scripts/
+  test_script: 'TestScript-foo.xlsx'
+  
+  # Excel section headers
+  # Customize these if your test script uses different header names
+  input_points_header: "Inputs"
+  conditions_header: "Conditions for Evaluation of Test Step"
+  output_points_header: "Expected Outputs"

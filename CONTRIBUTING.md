@@ -56,6 +56,25 @@ issue<issue#>-<descriptor>
 ### Code Review
 - All PRs require review before merging
 
+### Keeping Feature Branches Up to Date
+To keep a feature branch current with `develop` and resolve conflicts before review:
+
+1. **Merge `develop` into your feature branch** (do not rebase):
+   ```bash
+   git checkout <your-feature-branch>
+   git fetch origin
+   git merge origin/develop
+   ```
+2. **Resolve any merge conflicts**, then stage and commit:
+   ```bash
+   # After resolving conflicts in your editor:
+   git add <resolved-files>
+   git commit
+   ```
+3. **Repeat if `develop` moves ahead during review**: If new commits land on `develop` while your PR is under review, repeat the steps above before the PR is merged.
+
+> **Merge, not rebase.** We are preferring merge over rebasing to avoid rewriting commit history and the need for `git push --force` to update the remote branch. Merging keeps history intact and makes conflict resolution a one-time event per merge rather than potentially repeating it for each commit.
+
 ### Merging and Cleanup
 1. **Close corresponding issue**: Close the corresponding issue with a comment linking to the merged PR
    - Example: "Resolved in PR #42" with a link to the PR

@@ -1,40 +1,80 @@
-import yaml
 import pandas as pd
 import time
 import argparse
 import re
-import os
-import math
+from pathlib import Path
+from src.utils.config_loader import load_config
+
 
 class Test:
-    def __init__(self, config_file, device_init=True):
-        self.FILE_FOLDER = "./files/"
-        self.SRC_FOLDER = "./src/"
-        # Open configuration
-        with open(self.SRC_FOLDER+config_file, "r") as fp:
-            self.config = yaml.safe_load(fp)
+    def __init__(
+        self,
+        global_config_path: str = None,
+        test_config_path: str = None,
+        device_init: bool = True
+    ):
+        """
+        Initialize Test with configuration.
+        
+        Parameters
+        ----------
+        global_config_path : str, optional
+            Path to global config file. Can be absolute or relative to project root.
+            If None, defaults to config/global_config.yaml
+        test_config_path : str, optional
+            Path to test-specific config file. Can be absolute or relative to project root.
+            If None, uses test_type from global config to determine path
+        device_init : bool, optional
+            Whether to initialize device. Default is True.
+        """
+        # Set paths relative to this file's location
+        self.SRC_FOLDER = Path(__file__).resolve().parent
+        self.PROJECT_ROOT = self.SRC_FOLDER.parent
+        
+        # Convert string paths to Path objects if provided
+        global_config_path_obj = Path(global_config_path) if global_config_path else None
+        test_config_path_obj = Path(test_config_path) if test_config_path else None
+        
+        # Load configuration from global and test-specific files
+        self.config = load_config(
+            self.PROJECT_ROOT,
+            global_config_path=global_config_path_obj,
+            test_config_path=test_config_path_obj
+        )
+        
+        # Extract config sections
+        self.test_type = self.config['test_type']
+        self.device_type = self.config['device_type']
+        self.test_base_dir = self.PROJECT_ROOT / "conformance_tests" / self.test_type
+        self.test_scripts_dir = self.test_base_dir / "test_scripts"
+        self.results_dir = self.test_base_dir / "results"
+
         # Initiate Test Script
         self.test_config = self.config["test"]
         self.test_file = self.test_config["test_script"]
-        self.input_points_header = self.test_config.get("input_points_header", "Simulation (controller) Inputs")
-        self.conditions_header = self.test_config.get("conditions_header", "Result Time")
-        self.output_points_header = self.test_config.get("output_points_header", "Expected Controller BACnet Outputs")
+        self.input_points_header = self.test_config.get("input_points_header", "BACnet Inputs")
+        self.conditions_header = self.test_config.get("conditions_header", "Conditions for Evaluation of Test Step")
+        self.output_points_header = self.test_config.get("output_points_header", "BACnet Expected Outputs")
         # Initiate Device
         self.device_config = self.config["device"]
-        if self.device_config['type'] == 'simcdl':
-            from src.DeviceSimcdl import DeviceSimcdl
-            self.controller = DeviceSimcdl(device_config=self.device_config)
-        elif self.device_config['type'] == 'bacnet':
-            from src.DeviceBacnet import DeviceBacnet
-            self.controller = DeviceBacnet(device_config=self.device_config)
+        device_type = self.device_config['type']
+        
+        # Import and instantiate appropriate device class
+        if device_type == 'simulation':
+            from src.device.simulation_device import SimulationDevice
+            self.controller = SimulationDevice(device_config=self.device_config)
+        elif device_type == 'bacnet':
+            from src.device.bacnet_device import BacnetDevice
+            self.controller = BacnetDevice(device_config=self.device_config)
         else:
-            raise ValueError('In configuration file, device type of {0} unknown.'.format(self.device_config['type']))
+            raise ValueError(f'In configuration file, device type "{device_type}" is unknown. '
+                           f'Valid types: "simulation", "bacnet"')
         # Initiate Test Sequence with Test and Device
         self.point_properties = self.controller.get_point_properties()
         self.init_test_sequence(filename=self.test_file, ip_header=self.input_points_header, cond_header=self.conditions_header, op_header=self.output_points_header, point_prop=self.point_properties)
 
     def init_test_sequence(self, filename, ip_header, cond_header, op_header, point_prop):
-        self.test_df = pd.read_excel(self.FILE_FOLDER+filename, index_col=0, header=None)
+        self.test_df = pd.read_excel(self.test_scripts_dir / filename, index_col=0, header=None)
         self.ip = self.format_excel_df(df=self.test_df.loc[ip_header:cond_header].iloc[1:-1], point_prop=point_prop)
         self.cond = self.format_excel_df(df=self.test_df.loc[cond_header:op_header].iloc[1:-1], is_cond_df=True, point_prop=point_prop)
         self.op = self.format_excel_df(df=self.test_df.loc[op_header:].iloc[1:], point_prop=point_prop)
@@ -42,12 +82,6 @@ class Test:
 
         self.current_step = None
         self.step_outputs = {}
-
-        self.ramp_step = False
-        self.ramp_variables = {}
-
-        self.periodic_step = False
-        self.periodic_variables = {}
 
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
         df_new = df.reset_index().drop([0], axis=1)
@@ -89,24 +123,29 @@ class Test:
         print()
 
         if to_csv:
-            file = self.FILE_FOLDER + name + "_values.csv"
-            if not os.path.exists(file):
+            # Create output directory if it doesn't exist
+            output_dir = self.results_dir / f"run_{name}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            file = output_dir / f"{name}_values.csv"
+            if not file.exists():
                 fp = open(file, "w")
                 column_names = 'time,' + ','.join(list(points.keys())) + '\n'
                 fp.write(column_names)
             else:
                 fp = open(file, "a")
-            if self.controller.get_type() == 'simcdl':
-                timestamp = str(self.controller.get_current_time())
-            else:
-                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = str(self.controller.get_current_time())
             values = timestamp+','+','.join([str(value) for value in points.values()])+'\n'
             fp.write(values)
 
     def save_test_times(self, to_csv=False, name=None, step=None, st=None, et=None, duration=None):
         if to_csv:
-            file = self.FILE_FOLDER + name + "_test_times.csv"
-            if not os.path.exists(file):
+            # Create output directory if it doesn't exist
+            output_dir = self.results_dir / f"run_{name}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            file = output_dir / f"{name}_test_times.csv"
+            if not file.exists():
                 fp = open(file, "w")
                 column_names = 'step,start_time,end_time,duration\n'
                 fp.write(column_names)
@@ -118,10 +157,8 @@ class Test:
 
     def start_test(self, to_csv=False, name=None):
         output_acceptable_bounds = self.acceptable_op_bounds.to_dict()
-        if self.controller.get_type() == 'simcdl':
-            start_time = 0
-        else:
-            start_time = time.time()
+        start_time = self.controller.get_current_time()
+        
         for i in range(1, self.ip.shape[0]):
             self.current_step = i
             print("starting step %d"%i)
@@ -134,61 +171,53 @@ class Test:
             print("Successfully set input values=================================")
             print()
 
-            if self.current_step == 1 and self.controller.get_type() == 'simcdl':
-                self.controller.initialize_sim()
-
-            if self.controller.get_type() == 'simcdl':
-                step_start_time = self.controller.get_current_time()
-            else:
-                step_start_time = time.time()
+            step_start_time = self.controller.get_current_time()
 
             self.test_conditions(condition=cond, st=step_start_time, to_csv=to_csv, name=name)
+            
             print("Conditions met. Current values = ")
             self.print_points(to_csv=to_csv, name=name)
 
-            actual_outputs = self.get_current_variable_values(variable_list = self.op.columns.values)
+            actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
             self.step_outputs[self.current_step] = actual_outputs
 
             if i > 1:
                 print("Checking if outputs match the expected values")
                 assertion_op = self.assert_output(expected_op_dict = expected_op, actual_output_dict=actual_outputs, acceptable_bounds_dict = output_acceptable_bounds)
                 if not assertion_op:
-                    if self.controller.get_type() == 'simcdl':
-                        end_time = self.controller.get_current_time()
-                    else:
-                        end_time = time.time()
+                    end_time = self.controller.get_current_time()
                     time_elapsed = round((end_time - start_time)/60, 2)
-                    print("Test failed! Total time = %f minutes"%round(time_elapsed, 2))
+                    print("Test failed at test step %d! Total time = %f minutes"%(i, round(time_elapsed, 2)))
                     self.save_test_times(to_csv=to_csv, name=name, step=-1, st=start_time, et=end_time,
                                          duration=time_elapsed)
+                    Ramp.destroy_all()
+                    Periodic.destroy_all()
 
                     return
-                if self.controller.get_type() == 'simcdl':
-                    step_end_time = self.controller.get_current_time()
-                else:
-                    step_end_time = time.time()
+                step_end_time = self.controller.get_current_time()
                 step_time_elapsed = round((step_end_time - step_start_time)/60, 2)
                 print("Passed step %d; Time taken for this step = %f minutes"%(i, round(step_time_elapsed, 2)))
+                Ramp.destroy_all()
+                Periodic.destroy_all()
                 self.save_test_times(to_csv=to_csv, name=name, step=i, st=step_start_time, et=step_end_time, duration=step_time_elapsed)
 
             else:
                 print("not checking first step values")
-
+                Ramp.destroy_all()
+                Periodic.destroy_all()
             print("moving to the next step")
             print()
-        end_time = time.time()
+        end_time = self.controller.get_current_time()
         time_elapsed = round((end_time - start_time) / 60, 2)
         print("Controller passed the test successfully! Total time = %f minutes"%round(time_elapsed, 2))
+        
         self.save_test_times(to_csv=to_csv, name=name, step=999, st=start_time, et=end_time,
                              duration=time_elapsed)
         return
 
     def set_values(self, variable_value_dict):
         # start with assumption that there are no ramping variables in this step
-        self.ramp_step = False
         self.ramp_variables = {}
-
-        self.periodic_step = False
         self.periodic_variables = {}
         for key in variable_value_dict:
             val = variable_value_dict[key]
@@ -196,14 +225,38 @@ class Test:
                 # remove all whitespaces
                 val = val.replace(" ","")
 
-                if "RAMP(" in val:
-                    ramp_params_dict = self.get_ramp_parameter_dict(val=val)
-                    self.ramp_variables[key] = ramp_params_dict
-                    value_to_set = ramp_params_dict['ramp_start']
-                elif "PERIODIC(" in val:
-                    periodic_params_dict = self.get_periodic_parameter_dict(val=val)
-                    self.periodic_variables[key] = periodic_params_dict
-                    value_to_set = periodic_params_dict['periodic_start']
+                if "=RAMP(" in val:
+                    # import pdb; pdb.set_trace()
+                    op = Ramp(raw_string=val, test_obj=self, variable=key)
+                    op.get_parameter_dict()                    
+                    value_to_set = op.params['ramp_start']
+                elif "=PERIODIC(" in val:
+                    op = Periodic(raw_string=val, test_obj=self, variable=key)
+                    op.get_parameter_dict()                    
+                    value_to_set = op.params['periodic_start']
+                elif "=INTERPOLATE(" in val:                    
+                    op = InterpolateOperation(raw_string=val, test_obj=self)                    
+                    op.get_parameter_dict()
+                    op.compute_value()
+                    value_to_set = op.computed_value
+                elif "=ADD(" in val:                    
+                    op = Add(raw_string=val, test_obj=self)
+                    op.get_parameter_dict()
+                    op.compute_value()
+                    value_to_set = op.computed_value                
+                elif "=SUB(" in val:                    
+                    op = Sub(raw_string=val, test_obj=self)
+                    op.get_parameter_dict()
+                    op.compute_value()
+                    value_to_set = op.computed_value
+                elif "=MULT(" in val:                    
+                    op = Mul(raw_string=val, test_obj=self)
+                    op.get_parameter_dict()
+                    op.compute_value()
+                    value_to_set = op.computed_value  
+                elif "=LAST" in val:
+                    expression = val[1:]
+                    value_to_set = self.evaluate_expression(expression=expression, current_variable = key)
                 elif val.startswith("="):
                     expression = val[1:]
                     value_to_set = self.evaluate_expression(expression=expression)
@@ -216,139 +269,64 @@ class Test:
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
             self.controller.set_single_point(key, value_to_set)
 
-    def get_ramp_parameter_dict(self, val, default_ramp_period=10):
-        val = val.split("ramp(")[1][:-1]
-        string_parameters = val.split(';')
-        ramp_params = []
-        for param in string_parameters:
-            if param.startswith("="):
-                expression = param[1:]
-                val_expression = self.evaluate_expression(expression=expression)
-                ramp_params.append(val_expression)
-            else:
-                ramp_params.append(float(param))
-
-        ramp_params_dict = {}
-
-        # if start == end, no ramping
-        if ramp_params[0] != ramp_params[1]:
-            self.ramp_step = True
-
-        ramp_params_dict['ramp_start'] = ramp_params[0]
-        ramp_params_dict['ramp_end'] = ramp_params[1]
-
-        # convert ramp rate to value per second
-        ramp_params_dict['ramp_rate'] = ramp_params[2]/60.0
-
-        if len(ramp_params) == 4:
-            ramp_params_dict['ramp_period'] = ramp_params[3]
-        else:
-            ramp_params_dict['ramp_period'] = default_ramp_period
-
-        return ramp_params_dict
-
-    def get_periodic_parameter_dict(self, val, default_period = 10):
-        self.periodic_step = True
-        val = val.split("PERIODIC(")[1][:-1]
-        string_parameters = val.split(";")
-        periodic_params_dict = {}
-        periodic_params_dict['periodic_start'] = self.evaluate_expression(expression=string_parameters[0])
-        periodic_params_dict['periodic_expression'] = string_parameters[0]
-        periodic_params_dict['period'] = float(string_parameters[1])
-
-        print(periodic_params_dict)
-        return periodic_params_dict
-
-    def set_ramp_value(self, variable, params, seconds_since_start):
-        ramp_start = params['ramp_start']
-        ramp_end = params['ramp_end']
-        ramp_rate = params['ramp_rate']
-        ramp_period = params['ramp_period']
-
-        if seconds_since_start % ramp_period == 0:
-            current_period = seconds_since_start / ramp_period
-            if ramp_start < ramp_end:
-                value_to_set = ramp_start + ramp_rate * current_period * ramp_period
-                if value_to_set > ramp_end:
-                    value_to_set = ramp_end
-            elif ramp_start > ramp_end:
-                value_to_set = ramp_start - ramp_rate * current_period * ramp_period
-                if value_to_set < ramp_end:
-                    value_to_set = ramp_end
-
-            current_value = self.controller.get_current_variable_value(variable)
-            if round(value_to_set, 2) != round(current_value, 2):
-                var_name_in_test = self.point_properties.loc[variable].name_in_test
-                print("Ramping input %s to %f" % (var_name_in_test, value_to_set))
-                print()
-                self.controller.set_single_point(variable, value_to_set)
-
-    def set_periodic_value(self, variable, params, seconds_since_start):
-        periodic_expression = params['periodic_expression']
-        period = params['period']
-
-        if seconds_since_start%period == 0:
-            value_to_set = self.evaluate_expression(expression=periodic_expression)
-            current_value = self.controller.get_current_variable_value(variable)
-            if round(value_to_set, 2) != round(current_value, 2):
-                var_name_in_test = self.point_properties.loc[variable].name_in_test
-                print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
-                print()
-                self.controller.set_single_point(variable, value_to_set)
-
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
 
         print("step = %d " % self.current_step)
-        if self.controller.get_type() == 'simcdl':
-            current_time = self.controller.get_current_time()
-        else:
-            current_time = time.time()
-
+        device_type = self.controller.get_type()
+        current_time = self.controller.get_current_time()
         last_print = None
-
+        condition_met = False
+        # Check if time condition is met to end test step
         while current_time - st < condition['ClockTime']:
-
             seconds_since_start = int(current_time - st)
-
-            if self.ramp_step:
-                for variable in self.ramp_variables:
-                    params = self.ramp_variables[variable]
-                    self.set_ramp_value(variable=variable, params=params, seconds_since_start=seconds_since_start)
-
-            if self.periodic_step:
-                for variable in self.periodic_variables:
-                    params = self.periodic_variables[variable]
-                    self.set_periodic_value(variable=variable, params=params, seconds_since_start=seconds_since_start)
+            # Compute and set new input values for all ramps and periodics at this step
+            for obj in Ramp.instances:
+                if obj.params['ramp_step']:                        
+                    obj.compute_value(seconds_since_start)
+                    self.controller.set_single_point(obj.variable, obj.computed_value)
+            for obj in Periodic.instances:
+                if obj.params['periodic_step']:
+                    obj.compute_value(seconds_since_start)
+                    self.controller.set_single_point(obj.variable, obj.computed_value)
+            # Once new values set, let controller update outputs
+            self.controller.wait(duration=0.0000001)
+            # Save point values
+            self.print_points(to_csv=to_csv, name=name)
 
             if verbose:
                 print("current time = %f, wait until %f" % (current_time - st, condition['ClockTime']))
 
+            # Check if variable condition met to end test step
             if pd.notna(condition['VariableName']):
                 output_variable_to_check = condition['VariableName']
                 output_value_to_check = condition['VariableValue']
-
                 if type(output_value_to_check) == str:
-                    operator = re.findall("\A\D+", output_value_to_check)
+                    operator = re.findall(r"\A\D+", output_value_to_check)
                     if len(operator) == 1:
                         operator = operator[0]
                     else:
                         #TODO: handle this better
                         raise Exception("Invalid condition value in step %d for variable %s"%(self.current_step, output_variable_to_check))
-
                     output_value_to_check = float(output_value_to_check.split(operator)[1])
                     output_value_to_check = self.controller.convert_value_test_unit_to_device_unit(output_variable_to_check, output_value_to_check)
-
                 else:
                     operator = ">="
-
                 actual_output_variable_value = self.controller.get_current_variable_value(output_variable_to_check)
-
+                # If condition met, end test step
                 if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=output_value_to_check):
                     print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, output_value_to_check))
                     print()
+
                     return
-            
-            if self.controller.get_type() == 'simcdl':
+
+            # If time and variable conditions not met to end test step, wait and advance time
+            wait_duration = sleep_interval if sleep_interval else 10
+            self.controller.wait(wait_duration) 
+            current_time = self.controller.get_current_time()         
+
+            # Save point values (every minute for BACnet, every step for simulation)
+            device_type = self.controller.get_type()
+            if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
                 if seconds_since_start%60 == 0:
@@ -356,19 +334,28 @@ class Test:
                         last_print = seconds_since_start/60
                         print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
                         self.print_points(to_csv=to_csv, name=name)
-
-            if sleep_interval:
-                time.sleep(sleep_interval)
-
-            if self.controller.get_type() == 'simcdl':
-                self.controller.advance_sim()
-                current_time = self.controller.get_current_time()
-            else:
-                current_time = time.time()
-                
+        # If time condition met, end test step
+        # Update current time
+        current_time = self.controller.get_current_time()
+        seconds_since_start = int(current_time - st)
+        # Compute and set new input values for all ramps and periodics a final time at this step
+        for obj in Ramp.instances:
+            if obj.params['ramp_step']:                        
+                obj.compute_value(seconds_since_start)   
+                self.controller.set_single_point(obj.variable, obj.computed_value)        
+        for obj in Periodic.instances:
+            if obj.params['periodic_step']:
+                obj.compute_value(seconds_since_start)
+                self.controller.set_single_point(obj.variable, obj.computed_value)
+        # Once new values set, let controller update outputs
+        self.controller.wait(duration = 0.0000001)
+        
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
+        # TODO: Handle initialization step more explicitly in the test loop
+        if actual_value is None:  # For simulation device, all varables are None before first wait() call
+            return False
         if operator == ">" and actual_value > expected_value:
             return True
         elif operator == ">=" and actual_value >= expected_value:
@@ -399,12 +386,12 @@ class Test:
                     actual_val = 0
                 else:
                     actual_val = 1
-
-            if expected_val == "Any":
-                continue
+            
             elif type(expected_val) == str:
-                if "last" in expected_val:
-                    operator = expected_val.split('last')[0]
+                if "ANY" in expected_val:
+                    continue
+                elif "LAST" in expected_val:
+                    operator = expected_val.split('LAST')[0]
                     variable = key
                     expected_val = self.step_outputs[self.current_step - 1][variable]
 
@@ -414,7 +401,12 @@ class Test:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print("For variable %s [or %s], actual value = %f not %s expected value = %f"%(key, var_name, actual_val, operator, expected_val))
                         return False
-                if expected_val.startswith("="):
+                elif "INTERPOLATE(" in expected_val:
+                    op = InterpolateOperation(raw_string=expected_val, test_obj=self)
+                    op.get_parameter_dict()                    
+                    op.compute_value()
+                    expected_value = op.computed_value                                         
+                elif expected_val.startswith("="):
                     expression = expected_val[1:]
                     expected_value = self.evaluate_expression(expression=expression)
 
@@ -433,69 +425,374 @@ class Test:
 
         return True
 
-    def evaluate_expression(self, expression):
+    def evaluate_expression(self, expression, current_variable = None):
+        original_expression = expression
         if expression.startswith("="):
-            expression = expression[1:]
-
+            expression = expression[1:]        
+            print(f'Expression is {expression}')
         while expression.find(')') != -1:
             e_loc = expression.find(')')
             s_loc = expression[:e_loc].rfind('(')
-            op = self.get_value_from_expression(expression=expression[s_loc + 1:e_loc])
-            expression = expression.replace(expression[s_loc:e_loc + 1], str(op))
-        return self.get_value_from_expression(expression=expression)
+            
+            #detect function name before the '('
+            func_start = s_loc
+            func_name = None
+            for name in ["ADD", "SUB", "MULT"]:
+                prefix = name + "("
+                if expression[:s_loc + 1].endswith(prefix):
+                    func_name = name
+                    func_start = s_loc - len(name)   # index where 'A'/'S'/'M' begins
+                    break
+    
+            #substring we evaluate:
+            #if inside function: "ADD(10;60)" (full thing)
+            #otherwise: whatever was inside parentheses
+            if func_name is not None:
+                sub_expr = expression[func_start:e_loc + 1]
+            else:
+                sub_expr = expression[s_loc + 1:e_loc]
+    
+            op = self.get_value_from_expression(
+                expression=sub_expr,
+                original_expression=original_expression,
+            )
 
-    def get_value_from_expression(self, expression):
+            # replace either "(…)" or "ADD(…)" with result
+            expression = expression.replace(expression[func_start if func_name else s_loc : e_loc + 1],
+                                            str(op),
+                                            1)  # replace only the first occurrence
+    
+        return self.get_value_from_expression(expression=expression, current_variable = current_variable)
+
+    def get_value_from_expression(self, expression, original_expression = None, current_variable = None):
 
         operator_found = False
         result = None
-        for operator in ['+', '-', '*', '/']:
-            if operator in expression:
-                operator_found = True
-                parts = expression.split(operator)
-                for part in parts:
-                    current_res = self.get_value_from_expression(expression=part)
-                    if result:
-                        if operator == '+':
-                            result = result + current_res
-                        elif operator == '-':
-                            result = result - current_res
-                        elif operator == '*':
-                            result = result * current_res
-                        elif operator == '/':
-                            result = result / current_res
-                    else:
-                        result = current_res
-                break
+    # New: operator tokens for function-style operations
+        if original_expression is not None:
+            for op_token, op_name in [("ADD(", "ADD"), ("SUB(", "SUB"), ("MULT(", "MULT")]:
+                if op_token in original_expression:
+                    operator_found = True
+    
+                    # Extract the argument substring inside the function call:
+                    # e.g. from "ADD(a;b)" -> "a;b"
+                    inner = original_expression.split(op_token, 1)[1]
+                    inner = inner[:-1]  # remove trailing ')'
+    
+                    # Split arguments on ';'
+                    parts = [p.strip() for p in inner.split(";")]
+    
+                    for part in parts:
+                        current_res = self.get_value_from_expression(expression=part)
+                        if result is not None:
+                            if op_name == "ADD":                                
+                                result = result + current_res                                
+                            elif op_name == "SUB":
+                                result = result - current_res
+                            elif op_name == "MULT":
+                                result = result * current_res
+                        else:
+                            result = current_res
+                    break
         if operator_found:
             return result
         else:
-            names_df = self.point_properties.loc[self.point_properties.name_in_test == expression]
+            if "LAST" in expression:
+                return self.controller.get_variable_value_from_prev_time_step(current_variable)                
+            else:
+                names_df = self.point_properties.loc[self.point_properties.name_in_test == expression]
             if not names_df.empty:
                 var_name = names_df.name_in_test.values[0]
                 var_to_check = names_df.index.values[0]
                 return self.controller.get_current_variable_value(var_to_check)
+                #return self.controller.get_current_variable_value(var_name)
             else:
                 try:
+                    print('Currently in the first try block')
+                    print(f'The expression is {expression}')
                     float_value = float(expression)
                 except Exception as e:
                     print("WARNING: cannot find variable to check %s"%expression)
                 return float_value
 
+class StateOperation:
+    OP_TOKEN = None 
+    def __init__(self, raw_string, test_obj, variable):
+        self.raw_string = raw_string
+        self.test = test_obj
+        self.params = {}
+        self.computed_value = None
+        self.variable = variable
+
+    def get_parameter_dict(self):
+        """Each child overrides this to extract parameters from the raw string."""
+        raise NotImplementedError        
+
+    def compute_value(self):
+        """Each operation computes a value at time t."""
+        raise NotImplementedError
+
+class Ramp(StateOperation):
+    OP_TOKEN = "RAMP("
+    instances = []
+    
+    def __init__(self, raw_string, test_obj, variable):
+        # import pdb; pdb.set_trace()
+        super().__init__(raw_string, test_obj, variable)        
+        Ramp.instances.append(self)
+
+    def destroy(self):
+        """Call this to allow the object to be garbage collected."""
+        if self in Ramp.instances:
+            Ramp.instances.remove(self)
+    
+    @classmethod
+    def destroy_all(cls):
+        cls.instances.clear()
+
+    def get_parameter_dict(self):
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
+        string_parameters = [s.replace(" ", "") for s in val.split(";")]
+        if len(string_parameters) < 4:
+            self.params = {
+                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
+                "duration": self.test.evaluate_expression(string_parameters[2]),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_period":10,
+                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+            }
+        else:
+            self.params = {
+                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
+                "duration": self.test.evaluate_expression(string_parameters[2]),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_period":self.test.evaluate_expression(string_parameters[3]),
+                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+            }
+
+    def compute_value(self, seconds_since_start):        
+        ramp_start = self.params['ramp_start']
+        ramp_end = self.params['ramp_end']
+        ramp_rate = self.params['ramp_rate']
+        ramp_period = self.params['ramp_period']
+        ramp_duration = self.params['duration']
+        if seconds_since_start % ramp_period == 0:
+            # import pdb; pdb.set_trace()
+            current_period = (seconds_since_start / ramp_period)
+            
+            if ramp_start < ramp_end:
+                value_to_set = ramp_start + ramp_rate * current_period * ramp_period
+                print(f'RAMP_START is {ramp_rate}, RAMP_RATE is {ramp_rate}, SECONDS_SINCE_START is {seconds_since_start}')
+                if value_to_set > ramp_end:
+                    value_to_set = ramp_end
+            elif ramp_start > ramp_end:
+                value_to_set = ramp_start - ramp_rate * current_period * ramp_period
+                if value_to_set < ramp_end:
+                    value_to_set = ramp_end
+            if seconds_since_start <= ramp_duration:
+                self.computed_value = value_to_set
+
+class Periodic(StateOperation):
+    OP_TOKEN = "PERIODIC("
+    instances = []
+    
+    def __init__(self, raw_string, test_obj, variable):
+        super().__init__(raw_string, test_obj, variable)        
+        Periodic.instances.append(self)
+
+    def destroy(self):
+        """Call this to allow the object to be garbage collected."""
+        if self in Periodic.instances:
+            Periodic.instances.remove(self)
+            
+    @classmethod
+    def destroy_all(cls):
+        cls.instances.clear()
+    
+    def get_parameter_dict(self):
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
+        string_parameters = [s.replace(" ", "") for s in val.split(";")]
+        if len(string_parameters) < 2:
+            self.params = {
+                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_expression": string_parameters[0],
+                "period": 10,
+                "periodic_step": True,
+            }
+        else:    
+            self.params = {
+                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_expression": string_parameters[0],
+                "period": float(string_parameters[1]),
+                "periodic_step": True,
+            }
+        
+    def compute_value(self, seconds_since_start):        
+        periodic_expression = self.params['periodic_expression']
+        period = self.params['period']
+        #import pdb; pdb.set_trace()
+        if seconds_since_start % period == 0:
+            value_to_set = self.test.evaluate_expression(expression=periodic_expression)
+            var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
+            print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
+            self.computed_value = value_to_set
+
+class StateLessOperation:
+    OP_TOKEN = None 
+    def __init__(self, raw_string, test_obj):
+        self.raw_string = raw_string
+        self.test = test_obj
+        self.params = {}
+        self.computed_value = None
+
+    def get_parameter_dict(self):
+        """Each child overrides this to extract parameters from the raw string."""
+        raise NotImplementedError        
+
+    def compute_value(self):
+        """Each operation computes a value at time t."""
+        raise NotImplementedError
+        
+    def split_top_level_semicolons(self, s: str):
+        parts = []
+        current = []
+        depth = 0
+        for ch in s:
+            if ch == '(':
+                depth += 1
+                current.append(ch)
+            elif ch == ')':
+                depth = max(depth - 1, 0)
+                current.append(ch)
+            elif ch == ';' and depth == 0:
+                parts.append(''.join(current))
+                current = []
+            else:
+                current.append(ch)
+        if current:
+            parts.append(''.join(current))
+        return parts
+        
+class TwoTermOperation(StateLessOperation):
+    """
+    Handles:
+    - parsing OP(arg1 ; arg2)
+    - evaluating both arguments
+    Child classes only define:
+    - OP_TOKEN
+    - _apply(a, b)
+    """
+
+    def get_parameter_dict(self):
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]
+        string_parameters = [s.replace(" ", "") for s in val.split(";")]
+
+        self.params = {
+            "first_term": self.test.evaluate_expression(string_parameters[0]),
+            "second_term": self.test.evaluate_expression(string_parameters[1]),
+        }
+
+    def compute_value(self):
+        self.computed_value = self._apply(self.params["first_term"],
+                                          self.params["second_term"])
+
+    def _apply(self, a, b):
+        """Child classes must define the actual operation"""
+        raise NotImplementedError        
+
+class Add(TwoTermOperation):
+    OP_TOKEN = "ADD("
+
+    def _apply(self, a, b):    
+        return a + b
+
+class Sub(TwoTermOperation):
+    OP_TOKEN = "SUB("
+    def _apply(self, a, b):
+        return a - b
+    
+class Mul(TwoTermOperation):
+    OP_TOKEN = "MULT("
+    def _apply(self, a, b):
+        return a * b       
+
+class InterpolateOperation(StateLessOperation):
+    OP_TOKEN = "INTERPOLATE("
+    def get_parameter_dict(self):
+        val = self.raw_string.split(self.OP_TOKEN)[1][:-1]      
+        string_parameters = self.split_top_level_semicolons(val)
+        string_parameters = [s.replace(' ', '') for s in string_parameters]
+        self.params['x'] = self.test.evaluate_expression(expression=string_parameters[0])
+        self.params['x0'] = self.test.evaluate_expression(expression=string_parameters[1])        
+        self.params['x1'] = self.test.evaluate_expression(expression=string_parameters[2])        
+        self.params['y0'] = self.test.evaluate_expression(expression=string_parameters[3])        
+        self.params['y1'] = self.test.evaluate_expression(expression=string_parameters[4]) 
+        if len(string_parameters) > 5:
+            self.params['min_out'] = self.test.evaluate_expression(expression=string_parameters[5]) 
+        else:
+            self.params['min_out'] = None        
+        if len(string_parameters) > 6:
+            self.params['max_out'] = self.test.evaluate_expression(expression=string_parameters[6]) 
+        else:
+            self.params['max_out'] = None
+        
+    def compute_value(self):
+        self.computed_value = self._apply()        
+                
+    def _apply(self):
+        result = self.params['y0'] + (self.params['y1'] - self.params['y0']) * \
+        ((self.params['x'] - self.params['x0']) / (self.params['x1'] - self.params['x0']))
+        if self.params['min_out'] is None and self.params['max_out'] is None:
+            return result
+        elif self.params['min_out'] is None:
+            return min(result, self.params['max_out'])
+        elif self.params['max_out'] is None:
+            return max(result, self.params['min_out'])
+        else:
+            return max(self.params['min_out'], min(result, self.params['max_out'])) 
 
 if __name__ == "__main__":
-    test = Test(config_file="")
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--reset", help="reset point values to first stage", action='store_true')
-    parser.add_argument("--output", help="print point values", action='store_true')
-    parser.add_argument("--csv", help="save outputs to csv", action='store_true')
-    parser.add_argument("--name", help="test name", default=time.strftime("%Y%m%dT%H%M%S"))
+    # Parse command-line arguments first
+    parser = argparse.ArgumentParser(
+        description="Run ASHRAE Guideline 36 conformance tests"
+    )
+    parser.add_argument(
+        "--global-config",
+        help="path to global config file (default: config/global_config.yaml)",
+        default=None
+    )
+    parser.add_argument(
+        "--test-config",
+        help="path to test-specific config file (default: determined from test_type)",
+        default=None
+    )
+    parser.add_argument("--reset", help="reset point values to first stage (overrides config)", action='store_true')
+    parser.add_argument("--output", help="print point values without running test (overrides config)", action='store_true')
+    parser.add_argument("--csv", help="save outputs to csv (overrides config)", action='store_true')
+    parser.add_argument("--name", help="test run name (overrides config)", default=None)
 
     args = parser.parse_args()
-    reset = args.reset
-    output = args.output
-    to_csv = args.csv
-    name = args.name
+    
+    # Initialize test with config files
+    test = Test(
+        global_config_path=args.global_config,
+        test_config_path=args.test_config
+    )
+    
+    # Get test_runner config with defaults
+    test_runner_config = test.config.get('test_runner', {})
+    
+    # Extract CLI arguments with fallback to config values
+    # All boolean flags use: CLI flag OR config value OR False
+    reset = args.reset or test_runner_config.get('reset_points', False)
+    output = args.output or test_runner_config.get('print_output', False)
+    to_csv = args.csv or test_runner_config.get('save_csv', False)
+    
+    # Name uses: CLI value OR config value OR timestamp
+    name = args.name or test_runner_config.get('name') or time.strftime("%Y%m%dT%H%M%S")
 
     print(to_csv)
     print(name)

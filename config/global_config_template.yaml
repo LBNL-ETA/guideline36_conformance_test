@@ -1,0 +1,71 @@
+# =============================================================================
+# GLOBAL CONFIGURATION TEMPLATE
+# =============================================================================
+# This file controls which conformance test to run and which device type to use.
+#
+# SETUP INSTRUCTIONS:
+# 1. Copy this file to 'global_config.yaml' in the same directory
+# 2. Set test_type to match a directory in conformance_tests/
+# 3. Set device_type to either 'simulation' or 'bacnet'
+# 4. Adjust test_runner options as needed
+# 5. Run: python src/Test.py [options]
+
+# -----------------------------------------------------------------------------
+# Test Selection
+# -----------------------------------------------------------------------------
+# Specify which conformance test to run
+# This must match a directory name in conformance_tests/
+# Examples: vav_rh, generic_thermal_zone, ahu, etc.
+test_type: vav_rh
+
+# -----------------------------------------------------------------------------
+# Device Type Selection
+# -----------------------------------------------------------------------------
+# Which device type to use for testing
+# Options: simulation, bacnet
+# This determines which device configuration section is used from the test's config.yaml
+device_type: simulation
+
+# -----------------------------------------------------------------------------
+# Test Runner Options
+# -----------------------------------------------------------------------------
+test_runner:
+  # Test run name (used for output file prefixes)
+  # Also used to create result subdirectory (e.g., conformance_tests/{test_type}/results/{name}/)
+  # If null, defaults to timestamp (YYYYMMDDTHHmmss)
+  name: null
+  
+  # Save test outputs and timing data to CSV files
+  # Files will be saved to: conformance_tests/{test_type}/results/{name}
+  # Options: true, false
+  save_csv: false
+  
+  # Print current point values without running test
+  # Options: true, false
+  print_output: false
+  
+  # Reset points to first step values and wait for stabilization
+  # Options: true, false
+  reset_points: false
+
+# -----------------------------------------------------------------------------
+# Logging Settings (Optional)
+# -----------------------------------------------------------------------------
+logging:
+  # Log level options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: INFO
+  
+  # Save logs to file
+  save_to_file: true
+  
+  # Log file directory (relative to test type directory)
+  log_dir: results
+
+# -----------------------------------------------------------------------------
+# CLI Overrides
+# -----------------------------------------------------------------------------
+# Note: Command-line arguments will override settings in this file
+# Examples:
+#   python -m src.Test.py --csv --name my_test_run
+#   python -m src.Test.py --output
+#   python -m src.Test.py --reset
