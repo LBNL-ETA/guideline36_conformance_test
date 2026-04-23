@@ -66,6 +66,6 @@ logging:
 # -----------------------------------------------------------------------------
 # Note: Command-line arguments will override settings in this file
 # Examples:
-#   python -m src.Test.py --csv --name my_test_run
-#   python -m src.Test.py --output
-#   python -m src.Test.py --reset
+#   python -m g36conftest.Test --csv --name my_test_run
+#   python -m g36conftest.Test --output
+#   python -m g36conftest.Test --reset
