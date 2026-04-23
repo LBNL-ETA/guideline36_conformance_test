@@ -5,9 +5,9 @@ This module provides a device implementation for testing CDL (Control Descriptio
 models compiled to FMU format using OpenModelica.
 """
 
-from src.device.base_device import BaseDevice, Point
-from src.device.Simcdl import Simcdl
-from src.conversion.units import convert
+from .base_device import BaseDevice, Point
+from .Simcdl import Simcdl
+from ..conversion.units import convert
 import subprocess
 import time
 import pandas as pd
@@ -68,7 +68,7 @@ class SimulationDevice(BaseDevice):
             Device configuration
         """
         # Resolve paths relative to project root
-        project_root = Path(__file__).resolve().parent.parent.parent
+        project_root = Path(__file__).resolve().parent.parent.parent.parent
         
         self.model_filepath = project_root / device_config["model_filepath"]
         self.model_mopath = device_config["model_mopath"]

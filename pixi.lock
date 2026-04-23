@@ -1465,9 +1465,9 @@ packages:
   size: 173114
   timestamp: 1757945422243
 - pypi: ./
-  name: g36test
+  name: g36conftest
   version: 0.0.1
-  sha256: c37486ba68a520ba396c604becc3c15a89f5d56873523ad53ab5f14ac329e6c0
+  sha256: 6b60736f5e1c3d7d19a491f67357c405ce03f765dce80c90a9a122b986fb4417
   requires_dist:
   - pyyaml
   - pandas

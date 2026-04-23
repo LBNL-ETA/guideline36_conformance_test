@@ -3,7 +3,7 @@ import time
 import argparse
 import re
 from pathlib import Path
-from src.utils.config_loader import load_config
+from .utils.config_loader import load_config
 
 
 class Test:
@@ -28,7 +28,7 @@ class Test:
             Whether to initialize device. Default is True.
         """
         # Set paths relative to this file's location
-        self.SRC_FOLDER = Path(__file__).resolve().parent
+        self.SRC_FOLDER = Path(__file__).resolve().parent.parent
         self.PROJECT_ROOT = self.SRC_FOLDER.parent
         
         # Convert string paths to Path objects if provided
@@ -61,10 +61,10 @@ class Test:
         
         # Import and instantiate appropriate device class
         if device_type == 'simulation':
-            from src.device.simulation_device import SimulationDevice
+            from .device.simulation_device import SimulationDevice
             self.controller = SimulationDevice(device_config=self.device_config)
         elif device_type == 'bacnet':
-            from src.device.bacnet_device import BacnetDevice
+            from .device.bacnet_device import BacnetDevice
             self.controller = BacnetDevice(device_config=self.device_config)
         else:
             raise ValueError(f'In configuration file, device type "{device_type}" is unknown. '
