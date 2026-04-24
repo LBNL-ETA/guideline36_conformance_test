@@ -1,5 +1,5 @@
 # from . import ureg. this should work if the code is packaged.
-from src.conversion import unit_registry
+from ..conversion import unit_registry
 reg = unit_registry
 Q = reg.Quantity
 

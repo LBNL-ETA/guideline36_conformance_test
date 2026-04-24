@@ -73,8 +73,8 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
 4. Run the test:
 
     ```
-    ❯ python -m src.Test --help
-    usage: python.exe -m src.Test [-h] [--global-config GLOBAL_CONFIG]
+    ❯ g36conftest --help
+    usage: python -m g36conftest.cli [-h] [--global-config GLOBAL_CONFIG]
                                 [--test-config TEST_CONFIG] [--reset]
                                 [--output] [--csv] [--name NAME]
 

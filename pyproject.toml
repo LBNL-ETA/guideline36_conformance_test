@@ -1,5 +1,5 @@
 [project]
-name = "g36test"
+name = "g36conftest"
 version = "0.0.1"
 # 'common'
 dependencies = [ 
@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies] # (not dep group)
-# installable like g36test[bacnet, simulation]
+# installable like g36conftest[bacnet, simulation]
 # interpreted as 'features' by pixi
 bacnet =     ["BAC0"]
 simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
@@ -30,6 +30,10 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 [tool.pixi.feature.simulation.target.linux-aarch64.dependencies] # so these are empty to denote not to do anything
 
 
+[project.scripts]
+g36conftest = "g36conftest.cli:cli"
+
+
 [dependency-groups]
 # test = ["pytest"]
 # docs = ["sphinx"]
@@ -37,12 +41,13 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["win-64", "linux-64", "osx-64",
+platforms = [
+    "win-64", "linux-64", "osx-64",
     "osx-arm64", "linux-aarch64"]
 
 [tool.pixi.pypi-dependencies]
-g36test = { path = ".", editable = true } # TODO: need a proper name like g36test
-# but really needs a 'dev' installation
+g36conftest = { path = ".", editable = true }
+
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
