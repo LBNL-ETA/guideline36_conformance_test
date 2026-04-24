@@ -30,6 +30,10 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 [tool.pixi.feature.simulation.target.linux-aarch64.dependencies] # so these are empty to denote not to do anything
 
 
+[project.scripts]
+g36conftest = "g36conftest.cli:cli"
+
+
 [dependency-groups]
 # test = ["pytest"]
 # docs = ["sphinx"]
@@ -43,6 +47,7 @@ platforms = [
 
 [tool.pixi.pypi-dependencies]
 g36conftest = { path = ".", editable = true }
+
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
