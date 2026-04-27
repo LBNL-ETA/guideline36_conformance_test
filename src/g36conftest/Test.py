@@ -1,12 +1,7 @@
 import pandas as pd
-import time
-import argparse
 import re
-import os
-import math
 from pathlib import Path
-from loguru import logger
-from src.utils.config_loader import load_config
+from .utils.config_loader import load_config
 
 
 class Test:
@@ -31,7 +26,7 @@ class Test:
             Whether to initialize device. Default is True.
         """
         # Set paths relative to this file's location
-        self.SRC_FOLDER = Path(__file__).resolve().parent
+        self.SRC_FOLDER = Path(__file__).resolve().parent.parent
         self.PROJECT_ROOT = self.SRC_FOLDER.parent
         
         # Convert string paths to Path objects if provided
@@ -64,10 +59,10 @@ class Test:
         
         # Import and instantiate appropriate device class
         if device_type == 'simulation':
-            from src.device.simulation_device import SimulationDevice
+            from .device.simulation_device import SimulationDevice
             self.controller = SimulationDevice(device_config=self.device_config)
         elif device_type == 'bacnet':
-            from src.device.bacnet_device import BacnetDevice
+            from .device.bacnet_device import BacnetDevice
             self.controller = BacnetDevice(device_config=self.device_config)
         else:
             raise ValueError(f'In configuration file, device type "{device_type}" is unknown. '
@@ -756,69 +751,4 @@ class InterpolateOperation(StateLessOperation):
         else:
             return max(self.params['min_out'], min(result, self.params['max_out'])) 
 
-if __name__ == "__main__":
-
-    # Parse command-line arguments first
-    parser = argparse.ArgumentParser(
-        description="Run ASHRAE Guideline 36 conformance tests"
-    )
-    parser.add_argument(
-        "--global-config",
-        help="path to global config file (default: config/global_config.yaml)",
-        default=None
-    )
-    parser.add_argument(
-        "--test-config",
-        help="path to test-specific config file (default: determined from test_type)",
-        default=None
-    )
-    parser.add_argument("--reset", help="reset point values to first stage (overrides config)", action='store_true')
-    parser.add_argument("--output", help="print point values without running test (overrides config)", action='store_true')
-    parser.add_argument("--csv", help="save outputs to csv (overrides config)", action='store_true')
-    parser.add_argument("--name", help="test run name (overrides config)", default=None)
-
-    args = parser.parse_args()
-    
-    # Initialize test with config files
-    test = Test(
-        global_config_path=args.global_config,
-        test_config_path=args.test_config
-    )
-    
-    # Get test_runner config with defaults
-    test_runner_config = test.config.get('test_runner', {})
-    
-    # Extract CLI arguments with fallback to config values
-    # All boolean flags use: CLI flag OR config value OR False
-    reset = args.reset or test_runner_config.get('reset_points', False)
-    output = args.output or test_runner_config.get('print_output', False)
-    to_csv = args.csv or test_runner_config.get('save_csv', False)
-    
-    # Name uses: CLI value OR config value OR timestamp
-    name = args.name or test_runner_config.get('name') or time.strftime("%Y%m%dT%H%M%S")
-
-    print(to_csv)
-    print(name)
-
-    if reset:
-        print("resetting points")
-        test.set_values(variable_value_dict=test.ip.iloc[1].to_dict())
-        points = test.read_points()
-        cool_loop_output = points['CoolLoopOut']
-
-        while cool_loop_output != 0:
-            print("waiting for cooling loop output to drop to 0, current value = %f"%cool_loop_output)
-            time.sleep(3)
-            points = test.read_points()
-            cool_loop_output = points['CoolLoopOut']
-
-        print()
-        test.print_points()
-    elif output:
-        print("printing values")
-        test.print_points()
-    else:
-        # print("starting test; Current values=")
-        # test.print_points()
-        test.start_test(to_csv=to_csv, name=name)
 
