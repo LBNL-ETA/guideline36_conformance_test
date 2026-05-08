@@ -68,7 +68,7 @@ class SimulationDevice(BaseDevice):
             Device configuration
         """
         # Resolve paths relative to project root
-        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        project_root = Path('.') # todo: should consolidate 'project_root's
         
         self.model_filepath = project_root / device_config["model_filepath"]
         self.model_mopath = device_config["model_mopath"]
