@@ -1,0 +1,1 @@
+Run `pytest -s test.py` here. `-s` to show stdout.
