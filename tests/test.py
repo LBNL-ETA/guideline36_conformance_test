@@ -3,11 +3,12 @@ from g36conftest.Test import Test as GTest # to not confuse pytest
 gtest = GTest()
 
 from pathlib import Path
+import pandas as pd
 
 @pytest.mark.parametrize("test_type", [
 'foo_units',
 ])
-def test(test_type):
+def test(test_type, dataframe_regression):
     name = test_type
     gtest.start_test(to_csv=True, name=name)
 
@@ -18,3 +19,6 @@ def test(test_type):
     result = Path('conformance_tests') / name / 'results' / f'run_{name}' / \
         f'{name}_values.csv'
     assert(result.exists())
+    result = pd.read_csv(result)
+    dataframe_regression.check(result) # might use text regression
+

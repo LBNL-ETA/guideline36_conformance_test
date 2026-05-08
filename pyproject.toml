@@ -35,8 +35,8 @@ g36conftest = "g36conftest.cli:cli"
 
 
 [dependency-groups]
-test = ["pytest",]# 'pytest-regressions']
-#'dev' specifically can be for debugging, formatting,
+test = ["pytest", 'pytest-regressions']
+#'dev' specifically can be for debugging, formatting, ...
 dev = [ {include-group = "test"}, ] # 
 
 
