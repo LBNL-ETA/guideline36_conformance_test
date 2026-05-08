@@ -1,13 +1,13 @@
 import pytest
+from g36conftest.Test import Test as GTest # to not confuse pytest
+gtest = GTest()
 
-from g36conftest.Test import Test
-gtest = Test()
+from pathlib import Path
 
 @pytest.mark.parametrize("test_type", [
 'foo_units',
 ])
-def test(test_type):
-    name = test_type
-    gtest.start_test(to_csv=True, name=name)
+def test(name):
+    gtest.start_test(to_csv=True, name=name)        
     assert(True)
 
