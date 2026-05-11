@@ -6,43 +6,47 @@ To achieve this goal, a performance validation method is needed to provide indep
 
 This software has been developed to conduct standardized, repeatable and manufacturer independent tests to validate that a BAS controller has been programmed in conformance with Guideline 36. Manufacturers would provide the controller (or the control program) and the software would run a suite of tests by setting a set of inputs to the controller and verifying the output signals from the controller matches the expected output as set by Guideline 36.
 
+## Installation
+
+You can develop in a [container](./README.md#using-docker-compose) or use [pixi](./README.md#using-pixi).
+
+### Using Docker Compose
+
+Install Docker. Then, the following.
+
+Build the simulation image (if first time) and run container in detached mode:
+
+```
+$ docker compose up dev -d
+```
+Attach to the container interactively in the right working directory:
+
+```
+$ docker compose exec -w /work dev denv simulation
+```
+Run a test(s) as described in the section "Run a Test."
+
+Exit the container: ctrl+d
+
+Stop and remove the container:
+
+```
+$ docker compose down
+```
+
+### Using Pixi
+
+[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation`.
+`exit` to exit.
+
+On Windows, you have to manually install [OpenModelica](https://openmodelica.org/).
+The compiler executable, `omc`, will be available on [pixi windows simulation environment activation](./pyproject.toml).
+
 
 ## Getting Started for a CDL Simulation Device
 
-### Using Docker Compose
-Install [Docker](https://www.docker.com/). Then, the following.
-
-1. Build the ``simulation`` image (if first time) and run container in detached mode: 
-
-    ```
-    $ docker compose up simulation -d
-    ```
-
-2. Attach to the container interactively in the right working directory: 
-
-    ```
-    $ docker compose exec -w /mnt/shared simulation bash
-    ```
-
-3. Run a test(s) as described in the section "Run a Test."
-
-4. Exit the container: ``ctrl+d``
-
-5. Stop and remove the container: 
-
-    ```
-    $ docker compose down
-    ```
-
-### If Not Docker Compose or Want Customized Environment
-
-1. Install Python3.  Recommend using Anaconda (easier installation of pyfmi).
-
-2. Install Python packages listed in ``requirements/simulation.txt``.
-
-3. Install [OpenModelica](https://openmodelica.org/) v1.25.0.
-
     - Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
+
 
 ### Run a Test
 
@@ -69,13 +73,27 @@ Install [Docker](https://www.docker.com/). Then, the following.
 4. Run the test:
 
     ```
-    $ python src/Test.py
-    
-    # Optional command-line arguments:
-    # --csv                  Save outputs to CSV
-    # --name <test_name>     Specify output filename prefix
-    # --reset                Reset points before test
-    # --output               Print current values without running
+    ❯ g36conftest --help
+    usage: python -m g36conftest.cli [-h] [--global-config GLOBAL_CONFIG]
+                                [--test-config TEST_CONFIG] [--reset]
+                                [--output] [--csv] [--name NAME]
+
+    Run ASHRAE Guideline 36 conformance tests
+
+    options:
+    -h, --help            show this help message and exit
+    --global-config GLOBAL_CONFIG
+                            path to global config file (default:
+                            config/global_config.yaml)
+    --test-config TEST_CONFIG
+                            path to test-specific config file (default:
+                            determined from test_type)
+    --reset               reset point values to first stage
+                            (overrides config)
+    --output              print point values without running test
+                            (overrides config)
+    --csv                 save outputs to csv (overrides config)
+    --name NAME           test run name (overrides config)
     ```
 
 Results will be saved to `conformance_tests/{test_type}/results/`

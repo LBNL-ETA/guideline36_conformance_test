@@ -5,7 +5,7 @@ This module provides a device implementation for testing physical or virtual
 BACnet controllers using the BAC0 library.
 """
 
-from src.device.base_device import BaseDevice, Point
+from .device.base_device import BaseDevice, Point
 import BAC0
 import pandas as pd
 import time

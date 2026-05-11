@@ -1,16 +1,18 @@
 name: g36_conformance_test
 
 services:
-  simulation:
+  dev:
     build:
       context: .
-      dockerfile: docker/Dockerfile.simulation
+      dockerfile: Dockerfile.dev
+    entrypoint: sleep infinity
     volumes:
-      - ./:/mnt/shared
+      - ./:/work
+      - cache:/root/.cache
+      - cache:/root/.openmodelica
     stdin_open: true # equivalent to docker run -i
     tty: true        # equivalent to docker run -t
 
-  bacnet:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.bacnet
+
+volumes:
+  cache:
