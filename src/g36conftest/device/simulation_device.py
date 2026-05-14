@@ -195,25 +195,22 @@ class SimulationDevice(BaseDevice):
 
     def set_single_point(self, point_name, value):
         """
-        Set a single point value with unit conversion.
+        Set a single point value with device units.
         
         Parameters
         ----------
-        point_name
+        point_name: str
             CDL path of the point
-        value
-            Value to set (in test units)
+        value: numeric
+            Value to set in device units
         """
         point = self.get_point(point_name)
         if point is None:
             print(f"Warning: Point {point_name} not found")
             return
         
-        # Convert from test units to device units
-        converted_value = self._unit_conversion(value, point.unit, point.point_type)
-        
         # Update cached value
-        self._cache_point_value(point_name, converted_value)
+        self._cache_point_value(point_name, value)
 
     def get_current_variable_value(self, variable_name):
         """
@@ -226,7 +223,7 @@ class SimulationDevice(BaseDevice):
             
         Returns
         -------
-        Current value from FMU, or None if simulation hasn't been started yet
+        Current value from FMU in device units, or None if simulation hasn't been started yet
         """
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
@@ -260,27 +257,6 @@ class SimulationDevice(BaseDevice):
         _,_,data = self.sim.get_results([var], start_time, final_time)
 
         return data[var][-1]
-
-    def convert_value_test_unit_to_device_unit(self, point_name, value):   # not being used!
-        """
-        Convert a value from test units to device (FMU) units.
-        
-        Parameters
-        ----------
-        point_name
-            CDL path of the point
-        value
-            Value in test units
-            
-        Returns
-        -------
-        Value in device units
-        """
-        point = self.get_point(point_name)
-        if point is None:
-            return value
-        
-        return self._unit_conversion(value, point.unit, point.point_type)
 
     def get_current_time(self):
         """

@@ -223,7 +223,7 @@ class BaseDevice(ABC):
     
     def _cache_point_value(self, point_name, value):
         """
-        Update the cached value in a Point object
+        Update the cached value in a Point object in device units
         
         The intent of this internal method is to keep the Point.value attribute
         in sync with the actual device state. It should be called in conjunction with
@@ -235,11 +235,13 @@ class BaseDevice(ABC):
         
         Parameters
         ----------
-        point_name
+        point_name: str
             Device-specific point name
-        value
+        value: numeric
             New value to cache
+
         """
+
         if point_name in self.points:
             self.points[point_name].value = value
     
