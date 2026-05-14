@@ -125,7 +125,7 @@ class BacnetDevice(BaseDevice):
             point = Point(
                 name=bacnet_name,
                 name_in_test=row['name_in_test'],
-                unit=row.get('units', None),
+                unit_in_test=row.get('units', None),
                 point_type=row.get('type', None),
                 causality=row.get('type', None),  # BACnet uses 'type' (e.g., 'analogInput')
                 metadata={

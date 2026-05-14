@@ -123,6 +123,7 @@ class SimulationDevice(BaseDevice):
             cdl_block = row['CDL Block']
             cdl_name = row['CDL Name']
             cdl_type = row['CDL Type']
+            cdl_unit = row['CDL Unit']
             unit = row['Unit']
             
             # Determine CDL path based on causality
@@ -147,7 +148,8 @@ class SimulationDevice(BaseDevice):
             point = Point(
                 name=cdl_path,
                 name_in_test=test_name,
-                unit=unit,
+                unit_in_test=unit,
+                unit_in_device=cdl_unit,
                 point_type=cdl_type,
                 causality=causality,
                 metadata={
@@ -175,7 +177,8 @@ class SimulationDevice(BaseDevice):
             data.append({
                 'name': point_name,
                 'name_in_test': point.name_in_test,
-                'Unit': point.unit,
+                'unit_in_test': point.unit_in_test,
+                'CDL Unit': point.unit_in_device,
                 'CDL Type': point.point_type,
                 'CDL Causality': point.causality,
                 'CDL Block': point.metadata.get('cdl_block', ''),
