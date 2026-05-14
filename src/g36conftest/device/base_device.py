@@ -24,9 +24,11 @@ class Point:
     name_in_test
         Human-readable name used in test scripts
     value (optional)
-        Current value of the point
-    unit (optional)
-        Engineering unit (e.g., 'F', 'cfm', 'percent')
+        Current value of the point in device units
+    unit_in_test (optional)
+        Engineering unit in test scripts (e.g., 'F', 'cfm', 'percent')
+    unit_in_device (optional)
+        Engineering unit in device (e.g., 'C', 'm3/s', 'dimensionless')
     point_type (optional)
         Type information (e.g., 'Boolean', 'Real', 'Integer')
     causality (optional)
@@ -38,7 +40,8 @@ class Point:
     name: str
     name_in_test: str
     value: any = None
-    unit: str = None
+    unit_in_test: str = None
+    unit_in_device: str = None
     point_type: str = None
     causality: str = None
     metadata: dict = field(default_factory=dict)
