@@ -1,8 +1,23 @@
 import pytest
+import pytest
+from pathlib import Path
+test_dir = Path(__file__).parent
+
+@pytest.fixture(scope='session')
+def cache_dir() ->Path:
+    return test_dir / '.pytest_cache'
+@pytest.fixture(scope="session")
+def lazy_datadir() -> Path:
+    return test_dir / "regression-data"
+@pytest.fixture(scope="session")
+def original_datadir() -> Path:
+    return test_dir / "regression-data"
+
+
+
 from g36conftest.Test import Test as GTest # to not confuse pytest
 gtest = GTest()
 
-from pathlib import Path
 import pandas as pd
 
 @pytest.mark.parametrize("test_type", [
