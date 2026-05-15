@@ -20,20 +20,24 @@ gtest = GTest()
 
 import pandas as pd
 
-@pytest.mark.parametrize("test_type", [
-'foo_units',
-])
-def test(test_type, dataframe_regression):
+types = ['foo_units',]
+
+@pytest.mark.parametrize("test_type", types)
+def test_result(test_type, dataframe_regression):
     name = test_type
+    result = Path('conformance_tests') / name / 'results' / f'run_{name}' / \
+        f'{name}_values.csv'
+    if result.exists(): result.unlink() # does not repro if i don't delete
     gtest.start_test(to_csv=True, name=name)
+    assert(result.exists())
 
     # conf = Path('conformance_tests') / test_type / 'config' / 'config.yaml'
     # assert(conf.exists())
     # from yaml import safe_load
     # conf = safe_load(open(conf))
-    result = Path('conformance_tests') / name / 'results' / f'run_{name}' / \
-        f'{name}_values.csv'
-    assert(result.exists())
     result = pd.read_csv(result)
     dataframe_regression.check(result) # might use text regression
 
+
+#def test(test_type, )
+# TODO make tests out of the spreadsheet tests hah
