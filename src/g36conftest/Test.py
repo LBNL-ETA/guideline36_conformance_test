@@ -337,7 +337,14 @@ class Test:
                     else:
                         #TODO: handle this better
                         raise Exception("Invalid condition value in step %d for variable %s"%(self.current_step, output_variable_to_check))
-                    output_value_to_check = float(output_value_to_check.split(operator)[1])
+                    try:
+                        # Try converting string to float if just a number
+                        output_value_to_check = float(output_value_to_check.split(operator)[1])
+                    except:
+                        # Otherwise, it must be a reference to a variable so get that current value
+                        point = self.controller.get_point_by_test_name(operator)
+                        output_value_to_check = self.controller.get_current_variable_value(point.name)
+                        output_value_to_check = convert(output_value_to_check, point.unit_in_device, point.unit_in_test).magnitude
                 else:
                     operator = ">="
                 # Get actual point value and convert to test script units
