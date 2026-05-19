@@ -330,23 +330,31 @@ class Test:
             if pd.notna(condition['VariableName']):
                 output_variable_to_check = condition['VariableName']
                 output_value_to_check = condition['VariableValue']
-                if type(output_value_to_check) == str:
-                    operator = re.findall(r"\A\D+", output_value_to_check)
-                    if len(operator) == 1:
-                        operator = operator[0]
-                    else:
-                        #TODO: handle this better
-                        raise Exception("Invalid condition value in step %d for variable %s"%(self.current_step, output_variable_to_check))
-                    try:
-                        # Try converting string to float if just a number
-                        output_value_to_check = float(output_value_to_check.split(operator)[1])
-                    except:
-                        # Otherwise, it must be a reference to a variable so get that current value
-                        point = self.controller.get_point_by_test_name(operator)
+                # Get the output value to check
+                # If the value to check is just a number, the check is equality to the number
+                try:
+                    output_value_to_check = float(output_value_to_check)
+                    operator = "="
+                # Otherwise the value to check is an expression that needs to be parsed
+                except:
+                    # Check if the value to check is the form e.g. <=70
+                    strings = re.findall(r"\A\D+", output_value_to_check)
+                    for string in strings:
+                        # If it is, use the operator and the value to be compared
+                        if string in ['>', '>=', '<', '<=']:
+                            operator = string
+                            output_value_to_check = float(output_value_to_check.split(operator)[1])
+                            ref_var = False
+                            break
+                        # Otherwise, the value to check is equality to a referenced variable
+                        else:
+                            ref_var = True
+                    # The value to check is equality to a referenced variable
+                    if ref_var:
+                        operator = "="
+                        point = self.controller.get_point_by_test_name(output_value_to_check)
                         output_value_to_check = self.controller.get_current_variable_value(point.name)
                         output_value_to_check = convert(output_value_to_check, point.unit_in_device, point.unit_in_test).magnitude
-                else:
-                    operator = ">="
                 # Get actual point value and convert to test script units
                 actual_output_variable_value = self.controller.get_current_variable_value(output_variable_to_check)
                 point = self.controller.get_point(output_variable_to_check)
@@ -409,10 +417,10 @@ class Test:
             return True
         elif operator == "<=" and actual_value <= expected_value:
             return True
-        elif operator == "==" and actual_value == expected_value:
+        elif operator == "=" and actual_value == expected_value:
             return True
         else:
-            return False
+            raise ValueError('The operator {0} is invalid to check for step {1}.'.format(operator, self.current_step))
 
     def get_current_variable_values(self, variable_list):
         vals = {}
