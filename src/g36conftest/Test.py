@@ -406,21 +406,55 @@ class Test:
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
+        '''Checks if a boolean expression is valid, and if so, if it is true or false.
+        
+        Parameters
+        ----------
+        operator: str
+            Boolean expression operator, one of [>, >=, <, <=, =].
+        actual_value: numeric
+            The value to check.
+        expected_value: numeric
+            The value to check against.
+
+        Returns
+        -------
+        check: bool
+            True if <actual_value> <operator> <expected_value>.  Otherwise, False.
+        
+        '''
         # TODO: Handle initialization step more explicitly in the test loop
         if actual_value is None:  # For simulation device, all varables are None before first wait() call
-            return False
-        if operator == ">" and actual_value > expected_value:
-            return True
-        elif operator == ">=" and actual_value >= expected_value:
-            return True
-        elif operator == "<" and actual_value < expected_value:
-            return True
-        elif operator == "<=" and actual_value <= expected_value:
-            return True
-        elif operator == "=" and actual_value == expected_value:
-            return True
+            check = False
+        if operator == ">":
+            if actual_value > expected_value:
+                check = True
+            else:
+                check = False
+        elif operator == ">=":
+            if actual_value >= expected_value:
+                check = True
+            else:
+                check = False
+        elif operator == "<":
+            if actual_value > expected_value:
+                check = True
+            else:
+                check = False
+        elif operator == "<=":
+            if actual_value <= expected_value:
+                check = True
+            else:
+                check = False
+        elif operator == "=":
+            if actual_value == expected_value:
+                check = True
+            else:
+                check = False
         else:
             raise ValueError('The operator {0} is invalid to check for step {1}.'.format(operator, self.current_step))
+        
+        return check
 
     def get_current_variable_values(self, variable_list):
         vals = {}
