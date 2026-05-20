@@ -405,7 +405,7 @@ class Test:
         
         print("test condition finished")
 
-    def evaluate_boolean_expression(self, operator, actual_value, expected_value):
+    def evaluate_boolean_expression(self, operator, actual_value, expected_value, error_bound=0):
         '''Checks if a boolean expression is valid, and if so, if it is true or false.
         
         Parameters
@@ -416,6 +416,10 @@ class Test:
             The value to check.
         expected_value: numeric
             The value to check against.
+        error_bound: numeric, optional
+            Tolerance of the actual value to be above or below the expected value.
+            Only used if operator is =.
+            Default is 0.
 
         Returns
         -------
@@ -447,10 +451,10 @@ class Test:
             else:
                 check = False
         elif operator == "=":
-            if actual_value == expected_value:
-                check = True
-            else:
+            if abs(expected_value - actual_value) > error_bound:
                 check = False
+            else:
+                check = True
         else:
             raise ValueError('The operator {0} is invalid to check for step {1}.'.format(operator, self.current_step))
         
@@ -486,7 +490,7 @@ class Test:
                     variable = key
                     expected_val = self.step_outputs[self.current_step - 1][variable]
 
-                    if self.evaluate_boolean_expression(operator=operator, actual_value=actual_val, expected_value=expected_val):
+                    if self.evaluate_boolean_expression(operator=operator, actual_value=actual_val, expected_value=expected_val, error_bound=error_bound):
                         continue
                     else:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
