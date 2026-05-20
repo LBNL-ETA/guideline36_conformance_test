@@ -508,7 +508,7 @@ class Test:
                     if abs(expected_value - actual_val) > error_bound:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f" % (
-                        key, var_name, actual_val, expected_val, error_bound))
+                        key, var_name, actual_val, expected_value, error_bound))
                         return False
 
             else:
