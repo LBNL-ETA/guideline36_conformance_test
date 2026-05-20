@@ -330,16 +330,31 @@ class Test:
             if pd.notna(condition['VariableName']):
                 output_variable_to_check = condition['VariableName']
                 output_value_to_check = condition['VariableValue']
-                if type(output_value_to_check) == str:
-                    operator = re.findall(r"\A\D+", output_value_to_check)
-                    if len(operator) == 1:
-                        operator = operator[0]
-                    else:
-                        #TODO: handle this better
-                        raise Exception("Invalid condition value in step %d for variable %s"%(self.current_step, output_variable_to_check))
-                    output_value_to_check = float(output_value_to_check.split(operator)[1])
-                else:
-                    operator = ">="
+                # Get the output value to check
+                # If the value to check is just a number, the check is equality to the number
+                try:
+                    output_value_to_check = float(output_value_to_check)
+                    operator = "="
+                # Otherwise the value to check is an expression that needs to be parsed
+                except:
+                    # Check if the value to check is the form e.g. <=70
+                    strings = re.findall(r"\A\D+", output_value_to_check)
+                    for string in strings:
+                        # If it is, use the operator and the value to be compared
+                        if string in ['>', '>=', '<', '<=']:
+                            operator = string
+                            output_value_to_check = float(output_value_to_check.split(operator)[1])
+                            ref_var = False
+                            break
+                        # Otherwise, the value to check is equality to a referenced variable
+                        else:
+                            ref_var = True
+                    # The value to check is equality to a referenced variable
+                    if ref_var:
+                        operator = "="
+                        point = self.controller.get_point_by_test_name(output_value_to_check)
+                        output_value_to_check = self.controller.get_current_variable_value(point.name)
+                        output_value_to_check = convert(output_value_to_check, point.unit_in_device, point.unit_in_test).magnitude
                 # Get actual point value and convert to test script units
                 actual_output_variable_value = self.controller.get_current_variable_value(output_variable_to_check)
                 point = self.controller.get_point(output_variable_to_check)
@@ -391,21 +406,55 @@ class Test:
         print("test condition finished")
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value):
+        '''Checks if a boolean expression is valid, and if so, if it is true or false.
+        
+        Parameters
+        ----------
+        operator: str
+            Boolean expression operator, one of [>, >=, <, <=, =].
+        actual_value: numeric
+            The value to check.
+        expected_value: numeric
+            The value to check against.
+
+        Returns
+        -------
+        check: bool
+            True if <actual_value> <operator> <expected_value>.  Otherwise, False.
+        
+        '''
         # TODO: Handle initialization step more explicitly in the test loop
         if actual_value is None:  # For simulation device, all varables are None before first wait() call
-            return False
-        if operator == ">" and actual_value > expected_value:
-            return True
-        elif operator == ">=" and actual_value >= expected_value:
-            return True
-        elif operator == "<" and actual_value < expected_value:
-            return True
-        elif operator == "<=" and actual_value <= expected_value:
-            return True
-        elif operator == "==" and actual_value == expected_value:
-            return True
+            check = False
+        if operator == ">":
+            if actual_value > expected_value:
+                check = True
+            else:
+                check = False
+        elif operator == ">=":
+            if actual_value >= expected_value:
+                check = True
+            else:
+                check = False
+        elif operator == "<":
+            if actual_value > expected_value:
+                check = True
+            else:
+                check = False
+        elif operator == "<=":
+            if actual_value <= expected_value:
+                check = True
+            else:
+                check = False
+        elif operator == "=":
+            if actual_value == expected_value:
+                check = True
+            else:
+                check = False
         else:
-            return False
+            raise ValueError('The operator {0} is invalid to check for step {1}.'.format(operator, self.current_step))
+        
+        return check
 
     def get_current_variable_values(self, variable_list):
         vals = {}
