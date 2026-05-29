@@ -140,11 +140,12 @@ class Test:
             for b, s in zip(test_block_vals, test_step_vals):
                 s_str = str(int(s)) if isinstance(s, float) else str(s)
                 labels.append(f"{b}{s_str}")
-            return labels
         elif test_step_vals:
-            return [f"step{int(s) if isinstance(s, float) else s}" for s in test_step_vals]
+            labels = [f"step{int(s) if isinstance(s, float) else s}" for s in test_step_vals]
         else:
-            return []
+            labels = []
+    
+        return labels
     
     def _get_step_label(self, step_num):
         """Helper to convert test step integer to the xlsx label based on Test Block and Test Step.
@@ -164,9 +165,11 @@ class Test:
         """
 
         if self.step_labels and (step_num - 1) < len(self.step_labels):
-            return self.step_labels[step_num - 1]
-        return f"step{step_num}"
-
+            label = self.step_labels[step_num - 1]
+        else:
+            label = f"step{step_num}"
+        
+        return label
     
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
         df_new = df.reset_index().drop([0], axis=1)
