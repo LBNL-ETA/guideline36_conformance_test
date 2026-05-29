@@ -88,7 +88,9 @@ class Test:
     
     def _extract_step_labels(self, df):
         """Search the DataFrame for 'Test Block' and 'Test Step' cell values,
-        then combine them into labels like 'AA3', 'AA4', etc.
+        then combine them into a list of labels like 'AA3', 'AA4', etc that are indexed by test step column.
+
+        The extraction of a label from the list for a corresponding test step column is done in self._get_step_label().
         
         Parameters
         ----------
@@ -147,7 +149,7 @@ class Test:
     def _get_step_label(self, step_num):
         """Helper to convert test step integer to the xlsx label based on Test Block and Test Step.
 
-        The list of labels self.step_labels is created in self._extract_step_labels().
+        The list of labels is created by self._extract_step_labels().
 
         Parameters
         ----------
