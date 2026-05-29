@@ -77,7 +77,7 @@ class Test:
 
     def init_test_sequence(self, filename, ip_header, cond_header, op_header, point_prop):
         self.test_df = pd.read_excel(self.test_scripts_dir / filename, index_col=0, header=None)
-        self.step_labels = self._extract_step_labels()
+        self.step_labels = self._extract_step_labels(df = self.test_df)
         self.ip = self.format_excel_df(df=self.test_df.loc[ip_header:cond_header].iloc[1:-1], point_prop=point_prop)
         self.cond = self.format_excel_df(df=self.test_df.loc[cond_header:op_header].iloc[1:-1], is_cond_df=True, point_prop=point_prop)
         self.op = self.format_excel_df(df=self.test_df.loc[op_header:].iloc[1:], point_prop=point_prop)
@@ -86,14 +86,30 @@ class Test:
         self.current_step = None
         self.step_outputs = {}
     
-    def _extract_step_labels(self):
+    def _extract_step_labels(self, df):
         """Search the DataFrame for 'Test Block' and 'Test Step' cell values,
-        then combine them into labels like 'AA3', 'AA4', etc."""
+        then combine them into labels like 'AA3', 'AA4', etc.
+        
+        Parameters
+        ----------
+        df: DataFrame
+            Pandas DataFrame used to create labels.
+
+        Returns
+        -------
+        labels: list of str
+            List of labels as strings.
+            If "Test Block" and "Test Step" rows in DataFrame, label strings include block and step as "{block}{step}".
+            If only "Test Step" row in DataFrame, level strings include just step as "step{step}".
+            Otherwise, an empty list is returned.
+            
+        """
+
         test_block_vals = None
         test_step_vals = None
 
-        for idx in self.test_df.index:
-            row = self.test_df.loc[idx]
+        for idx in df.index:
+            row = df.loc[idx]
             # Handle duplicate index returning a DataFrame instead of Series
             if isinstance(row, pd.DataFrame):
                 row = row.iloc[0]
@@ -106,14 +122,15 @@ class Test:
                 test_block_vals = [v for v in row_list[pos + 1:] if pd.notna(v)]
 
             if "Test Step" in row_str_list:
+                # Everything after "Test Step" in that row are the step names
                 pos = next(i for i, v in enumerate(row_list) if str(v) == "Test Step")
                 test_step_vals = [v for v in row_list[pos + 1:] if pd.notna(v)]
 
         # Also check if the index itself contains these labels
-        if test_block_vals is None and "Test Block" in self.test_df.index:
-            test_block_vals = self.test_df.loc["Test Block"].dropna().tolist()
-        if test_step_vals is None and "Test Step" in self.test_df.index:
-            test_step_vals = self.test_df.loc["Test Step"].dropna().tolist()
+        if test_block_vals is None and "Test Block" in df.index:
+            test_block_vals = df.loc["Test Block"].dropna().tolist()
+        if test_step_vals is None and "Test Step" in df.index:
+            test_step_vals = df.loc["Test Step"].dropna().tolist()
 
         # Combine into labels
         if test_block_vals and test_step_vals:
@@ -127,9 +144,23 @@ class Test:
         else:
             return []
     
-    # Helper to get label safely
     def _get_step_label(self, step_num):
-        """Convert 1-based step number to the xlsx label like 'AA3'."""
+        """Helper to convert test step integer to the xlsx label based on Test Block and Test Step.
+
+        The list of labels self.step_labels is created in self._extract_step_labels().
+
+        Parameters
+        ----------
+        step_num: int
+            Test step integer to convert to corresponding label.
+
+        Returns
+        -------
+        label: str
+            Label corresonding to test step integer.
+        
+        """
+
         if self.step_labels and (step_num - 1) < len(self.step_labels):
             return self.step_labels[step_num - 1]
         return f"step{step_num}"
