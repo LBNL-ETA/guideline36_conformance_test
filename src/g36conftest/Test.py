@@ -77,6 +77,7 @@ class Test:
 
     def init_test_sequence(self, filename, ip_header, cond_header, op_header, point_prop):
         self.test_df = pd.read_excel(self.test_scripts_dir / filename, index_col=0, header=None)
+        self.step_labels = self._extract_step_labels(df = self.test_df)
         self.ip = self.format_excel_df(df=self.test_df.loc[ip_header:cond_header].iloc[1:-1], point_prop=point_prop)
         self.cond = self.format_excel_df(df=self.test_df.loc[cond_header:op_header].iloc[1:-1], is_cond_df=True, point_prop=point_prop)
         self.op = self.format_excel_df(df=self.test_df.loc[op_header:].iloc[1:], point_prop=point_prop)
@@ -84,7 +85,92 @@ class Test:
 
         self.current_step = None
         self.step_outputs = {}
+    
+    def _extract_step_labels(self, df):
+        """Search the DataFrame for 'Test Block' and 'Test Step' cell values,
+        then combine them into a list of labels like 'AA3', 'AA4', etc that are indexed by test step column.
 
+        The extraction of a label from the list for a corresponding test step column is done in self._get_step_label().
+        
+        Parameters
+        ----------
+        df: DataFrame
+            Pandas DataFrame used to create labels.
+
+        Returns
+        -------
+        labels: list of str
+            List of labels as strings.
+            If "Test Block" and "Test Step" rows in DataFrame, label strings include block and step as "{block}{step}".
+            If only "Test Step" row in DataFrame, level strings include just step as "step{step}".
+            Otherwise, an empty list is returned.
+            
+        """
+
+        test_block_vals = None
+        test_step_vals = None
+
+        for idx in df.index:
+            row = df.loc[idx]
+            # Handle duplicate index returning a DataFrame instead of Series
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
+            row_list = row.tolist()
+            row_str_list = [str(v) for v in row_list if pd.notna(v)]
+
+            if "Test Block" in row_str_list:
+                # Everything after "Test Block" in that row are the block names
+                pos = next(i for i, v in enumerate(row_list) if str(v) == "Test Block")
+                test_block_vals = [v for v in row_list[pos + 1:] if pd.notna(v)]
+
+            if "Test Step" in row_str_list:
+                # Everything after "Test Step" in that row are the step names
+                pos = next(i for i, v in enumerate(row_list) if str(v) == "Test Step")
+                test_step_vals = [v for v in row_list[pos + 1:] if pd.notna(v)]
+
+        # Also check if the index itself contains these labels
+        if test_block_vals is None and "Test Block" in df.index:
+            test_block_vals = df.loc["Test Block"].dropna().tolist()
+        if test_step_vals is None and "Test Step" in df.index:
+            test_step_vals = df.loc["Test Step"].dropna().tolist()
+
+        # Combine into labels
+        if test_block_vals and test_step_vals:
+            labels = []
+            for b, s in zip(test_block_vals, test_step_vals):
+                s_str = str(int(s)) if isinstance(s, float) else str(s)
+                labels.append(f"{b}{s_str}")
+        elif test_step_vals:
+            labels = [f"step{int(s) if isinstance(s, float) else s}" for s in test_step_vals]
+        else:
+            labels = []
+    
+        return labels
+    
+    def _get_step_label(self, step_num):
+        """Helper to convert test step integer to the xlsx label based on Test Block and Test Step.
+
+        The list of labels is created by self._extract_step_labels().
+
+        Parameters
+        ----------
+        step_num: int
+            Test step integer to convert to corresponding label.
+
+        Returns
+        -------
+        label: str
+            Label corresonding to test step integer.
+        
+        """
+
+        if self.step_labels and (step_num - 1) < len(self.step_labels):
+            label = self.step_labels[step_num - 1]
+        else:
+            label = f"step{step_num}"
+        
+        return label
+    
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
         df_new = df.reset_index().drop([0], axis=1)
         cols = ['step%d' % i for i in range(len(df_new.columns) - 2)]
@@ -198,7 +284,8 @@ class Test:
                 if not assertion_op:
                     end_time = self.controller.get_current_time()
                     time_elapsed = round((end_time - start_time)/60, 2)
-                    print("Test failed at test step %d! Total time = %f minutes"%(i, round(time_elapsed, 2)))
+                    label = self.step_labels[i-1] if i-1 < len(self.step_labels) else f"step{i}"
+                    print("Test failed at test step %s! Total time = %f minutes"%(self._get_step_label(i), round(time_elapsed, 2)))
                     self.save_test_times(to_csv=to_csv, name=name, step=-1, st=start_time, et=end_time,
                                          duration=time_elapsed)
                     Ramp.destroy_all()
@@ -207,7 +294,7 @@ class Test:
                     return
                 step_end_time = self.controller.get_current_time()
                 step_time_elapsed = round((step_end_time - step_start_time)/60, 2)
-                print("Passed step %d; Time taken for this step = %f minutes"%(i, round(step_time_elapsed, 2)))
+                print("Passed %s; Time taken for this step = %f minutes"%(self._get_step_label(i), round(step_time_elapsed, 2)))
                 Ramp.destroy_all()
                 Periodic.destroy_all()
                 self.save_test_times(to_csv=to_csv, name=name, step=i, st=step_start_time, et=step_end_time, duration=step_time_elapsed)
@@ -295,7 +382,7 @@ class Test:
 
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
 
-        print("step = %d " % self.current_step)
+        print("step = %s " % self._get_step_label(self.current_step))
         device_type = self.controller.get_type()
         current_time = self.controller.get_current_time()
         last_print = None
@@ -379,7 +466,8 @@ class Test:
                 if seconds_since_start%60 == 0:
                     if last_print == None or last_print != seconds_since_start/60:
                         last_print = seconds_since_start/60
-                        print("Completed minute %d of step %d of the test; Current values=" % (int(seconds_since_start/60), self.current_step))
+                        label = self.step_labels[self.current_step-1] if self.current_step-1 < len(self.step_labels) else f"step{self.current_step}"
+                        print("Completed minute %d of %s of the test; Current values="%(int(seconds_since_start/60), self._get_step_label(self.current_step)))
                         self.print_points(to_csv=to_csv, name=name)
         # If time condition met, end test step
         # Update current time
@@ -683,8 +771,7 @@ class Ramp(StateOperation):
             current_period = (seconds_since_start / ramp_period)
             
             if ramp_start < ramp_end:
-                value_to_set = ramp_start + ramp_rate * current_period * ramp_period
-                print(f'RAMP_START is {ramp_rate}, RAMP_RATE is {ramp_rate}, SECONDS_SINCE_START is {seconds_since_start}')
+                value_to_set = ramp_start + ramp_rate * current_period * ramp_period             
                 if value_to_set > ramp_end:
                     value_to_set = ramp_end
             elif ramp_start > ramp_end:
