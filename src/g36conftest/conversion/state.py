@@ -2,8 +2,8 @@ from typing import Self
 
 
 class State(str):
-    def __new__(cls, name: str, value: int | bool) -> Self:
-        _ = super().__new__(cls, name)
+    def __new__(cls, name: str, value: int | bool = -1) -> Self:
+        _ = super().__new__(cls, name, )
         if type(value) is int:
             _.int = value
             _.bool = bool(value)
@@ -12,6 +12,8 @@ class State(str):
             _.bool = value
             _.int = int(value)
         return _
+
+
 
     bool: bool
     def __bool__(self) -> bool: return self.bool
@@ -29,18 +31,18 @@ class State(str):
 
 
     @classmethod
-    def make_group(cls, states) -> dict[str, Self]:
+    def make_group(cls, states: list[Self]):
         _ = {str(s):s for s in states}
         # assert uniqueness
-        assert(len(_) == len(frozenset(str(s) for s in _.values())) )
-        assert(len(_) == len(frozenset(int(s) for s in _.values())) )
+        assert(len(_) == len(frozenset(str(s) for s in states)) )
+        assert(len(_) == len(frozenset(int(s) for s in states)) )
         return _
-    
+
+
 
 S = State
-
 _ =  [
-    S('True', True),
+    S('True',   True),
     S('False',  False) ]
 boolean = S.make_group(_)
 
@@ -86,6 +88,8 @@ for ss in (boolean, occupancy, status, commanded_state, run_state, switch, mode 
 del ss
 del _
 
+
+# from int or bool, requires knowing the group
 
 from typing import Literal
 from functools import cache
