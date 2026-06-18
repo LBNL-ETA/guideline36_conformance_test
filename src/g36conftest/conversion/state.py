@@ -63,17 +63,15 @@ class Group(frozenset):
 
 class Groups(dict[str, Group]):
     def __new__(cls, groups: dict[str, Group] = {} ) -> Self:
-        # assert uniqueness of keys
+        # assert uniqueness of names
         from itertools import chain
         _ = chain.from_iterable(groups.values())
-        _ = frozenset(str(s) for s in _)
         assert(
             sum(len(g) for g in groups.values())
             ==
             len(frozenset(str(s) for s in _)))
         _ = super().__new__(cls, groups)
         return _
-
 
 
 S = State
