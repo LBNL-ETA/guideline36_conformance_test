@@ -38,6 +38,35 @@ class State(str):
         assert(len(_) == len(frozenset(int(s) for s in states)) )
         return _
 
+    def __hash__(self) -> int:
+        return hash((str(self), int(self)))
+
+
+# might just use 'bidict' lib for the group
+# but this code has more attached functionality / encapsulation
+from typing import Iterable
+class Group(frozenset):
+    def __new__(cls, states: Iterable[State] = []) -> Self:
+        _ = {str(s):s for s in states}
+        # assert uniqueness
+        assert(len(_) == len(frozenset(str(s) for s in _.values())) )
+        assert(len(_) == len(frozenset(int(s) for s in _.values())) )
+        _ = super().__new__(cls, states)
+        return _
+
+    from functools import cache
+    @cache
+    def __getitem__(self, key: str | int | bool) -> State:
+        if isinstance(key, str):
+            for s in self:
+                if str(s) == str(State(key)):
+                    return s
+        else:
+            assert(type(key) in {int, bool} )
+            for s in self:
+                if int(s) == key:
+                    return s
+        raise KeyError('State not found')
 
 
 S = State
