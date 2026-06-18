@@ -14,7 +14,6 @@ class State(str):
         return _
 
 
-
     bool: bool
     def __bool__(self) -> bool: return self.bool
     int: int
@@ -27,7 +26,7 @@ class State(str):
     normalize = str.upper
 
     def __str__(self): return self.normalize()
-    def __repr__(self):return f"{self.__class__.__name__}({self})"
+    def __repr__(self):return f"{self.__class__.__name__}({self}, {int(self)})"
 
 
     @classmethod
