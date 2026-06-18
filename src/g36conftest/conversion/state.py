@@ -13,8 +13,9 @@ class State(str):
             _.int = int(value)
         return _
 
-    
+    bool: bool
     def __bool__(self): return self.bool
+    int: int
     def __int__(self):  return self.int
     def __eq__(self, other: 'Self'):
         return self.lower() == other.lower()
