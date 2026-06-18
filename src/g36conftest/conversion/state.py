@@ -1,5 +1,18 @@
+from typing import Self
+
 
 class State(str):
+    def __new__(cls, name: str, value: int | bool) -> Self:
+        _ = super().__new__(cls, name)
+        if isinstance(value, int):
+            _.int = value
+            _.bool = bool(value)
+        else:
+            assert(isinstance(value, bool))
+            _.bool = value
+            _.int = int(value)
+        return _
+
     
     def __bool__(self): return self.bool
     def __int__(self):  return self.int
@@ -11,18 +24,6 @@ class State(str):
     def __str__(self): return self.normalize()
     def __repr__(self):return f"{self.__class__.__name__}({self})"
 
-    @classmethod
-    def make(cls, name: str, value: int | bool):
-        _ = cls(name)
-        if isinstance(value, int):
-            _.int = value
-            _.bool = bool(value)
-        else:
-            assert(isinstance(value, bool))
-            _.bool = value
-            _.int = int(value)
-        return _
-    mk = make
 
     @classmethod
     def make_group(cls, states) -> dict:
@@ -35,43 +36,43 @@ class State(str):
 S = State
 
 _ =  [
-    S.mk('True', True),
-    S.mk('False',  False) ]
+    S('True', True),
+    S('False',  False) ]
 boolean = S.make_group(_)
 
 _ =  [
-    S.mk('present', True),
-    S.mk('absent',  False) ]
+    S('present', True),
+    S('absent',  False) ]
 occupancy = S.make_group(_)
 
 _ =  [
-    S.mk('enabled', True),
-    S.mk('disabled',  False) ]
+    S('enabled', True),
+    S('disabled',  False) ]
 status = S.make_group(_)
 
 _ =  [
-    S.mk('start', True),
-    S.mk('stop',  False) ]
+    S('start', True),
+    S('stop',  False) ]
 commanded_state = S.make_group(_)
 
 _ = [
-    S.mk('on',      True),
-    S.mk('off',     False),]
+    S('on',      True),
+    S('off',     False),]
 run_state = S.make_group(_)
 
 _ = [
-    S.mk('closed',  True),
-    S.mk('open',    False),]
+    S('closed',  True),
+    S('open',    False),]
 switch = S.make_group(_)
 
 _ = [
-    S.mk('occupied',    1),
-    S.mk('cooldown',    2),
-    S.mk('setup',       3),
-    S.mk('warmup',      4),
-    S.mk('setback',     5),
-    S.mk('unoccupied',  6),
-    S.mk('none',        7),]
+    S('occupied',    1),
+    S('cooldown',    2),
+    S('setup',       3),
+    S('warmup',      4),
+    S('setback',     5),
+    S('unoccupied',  6),
+    S('none',        7),]
 mode = S.make_group(_)
 
 
@@ -97,6 +98,5 @@ def convert(state: State | str, dtype: Literal['int'] | Literal['bool'] = 'int')
         assert(dtype == 'bool')
         value = bool(state)
     return value
-
 
 
