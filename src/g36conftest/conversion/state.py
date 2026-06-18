@@ -14,13 +14,15 @@ class State(str):
         return _
 
     bool: bool
-    def __bool__(self): return self.bool
+    def __bool__(self) -> bool: return self.bool
     int: int
-    def __int__(self):  return self.int
-    def __eq__(self, other: 'Self'):
-        return self.lower() == other.lower()
-
-    def normalize(self): return self.upper()
+    def __int__(self) -> int:  return self.int
+    
+    def __eq__(self, other: Self) -> bool:
+        s = self.normalize() == other.normalize()
+        i = int(self) == int(other)
+        return s and i
+    normalize = str.upper
 
     def __str__(self): return self.normalize()
     def __repr__(self):return f"{self.__class__.__name__}({self})"
