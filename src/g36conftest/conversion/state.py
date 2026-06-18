@@ -29,10 +29,11 @@ class State(str):
 
 
     @classmethod
-    def make_group(cls, states) -> dict:
-        _ = {str(n):n for n in states}
+    def make_group(cls, states) -> dict[str, Self]:
+        _ = {str(s):s for s in states}
         # assert uniqueness
         assert(len(_) == len(frozenset(str(s) for s in _.values())) )
+        assert(len(_) == len(frozenset(int(s) for s in _.values())) )
         return _
     
 
