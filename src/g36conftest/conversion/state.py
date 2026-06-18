@@ -4,11 +4,11 @@ from typing import Self
 class State(str):
     def __new__(cls, name: str, value: int | bool) -> Self:
         _ = super().__new__(cls, name)
-        if isinstance(value, int):
+        if type(value) is int:
             _.int = value
             _.bool = bool(value)
         else:
-            assert(isinstance(value, bool))
+            assert(type(value) is bool)
             _.bool = value
             _.int = int(value)
         return _
