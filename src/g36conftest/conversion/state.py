@@ -28,26 +28,17 @@ class State(str):
     def __str__(self): return self.normalize()
     def __repr__(self):return f"{self.__class__.__name__}({self}, {int(self)})"
 
-
-    @classmethod
-    def make_group(cls, states: list[Self]):
-        _ = {str(s):s for s in states}
-        # assert uniqueness
-        assert(len(_) == len(frozenset(str(s) for s in states)) )
-        assert(len(_) == len(frozenset(int(s) for s in states)) )
-        return _
-
     def __hash__(self) -> int:
         return hash((str(self), int(self)))
 
 
 # might just use 'bidict' lib for the group
 # but this code has more attached functionality / encapsulation
-from typing import Iterable
 class Group(frozenset):
-    def __new__(cls, states: Iterable[State] = []) -> Self:
+    def __new__(cls, states: list[State] = []) -> Self:
         _ = {str(s):s for s in states}
         # assert uniqueness
+        # assert or Exception?
         assert(len(_) == len(frozenset(str(s) for s in _.values())) )
         assert(len(_) == len(frozenset(int(s) for s in _.values())) )
         _ = super().__new__(cls, states)
@@ -67,72 +58,94 @@ class Group(frozenset):
                     return s
         raise KeyError('State not found')
 
+    s: Groups
+
+
+class Groups(dict[str, Group]):
+    def __new__(cls, groups: dict[str, Group] = {} ) -> Self:
+        # assert uniqueness of keys
+        from itertools import chain
+        _ = chain.from_iterable(groups.values())
+        _ = frozenset(str(s) for s in _)
+        assert(
+            sum(len(g) for g in groups.values())
+            ==
+            len(frozenset(str(s) for s in _)))
+        _ = super().__new__(cls, groups)
+        return _
+
+
 
 S = State
-_ =  [
+G = Group
+groups = G.s = Groups({
+
+'boolean': G([
     S('True',   True),
-    S('False',  False) ]
-boolean = S.make_group(_)
+    S('False',  False) ]),
 
-_ =  [
+'occupancy': G([
     S('present', True),
-    S('absent',  False) ]
-occupancy = S.make_group(_)
+    S('absent',  False) ]),
 
-_ =  [
-    S('enabled', True),
-    S('disabled',  False) ]
-status = S.make_group(_)
+'status': G([
+    S('enabled',    True),
+    S('disabled',   False) ]),
 
-_ =  [
+'commanded_state': G([
     S('start', True),
-    S('stop',  False) ]
-commanded_state = S.make_group(_)
+    S('stop',  False) ]),
 
-_ = [
+'run_state': G([
     S('on',      True),
-    S('off',     False),]
-run_state = S.make_group(_)
+    S('off',     False),]),
 
-_ = [
+'switch': G([
     S('closed',  True),
-    S('open',    False),]
-switch = S.make_group(_)
+    S('open',    False),]),
 
-_ = [
+'mode': G([
     S('occupied',    1),
     S('cooldown',    2),
     S('setup',       3),
     S('warmup',      4),
     S('setback',     5),
     S('unoccupied',  6),
-    S('none',        7),]
-mode = S.make_group(_)
+    S('none',        7),]),
+})
 
 
-S.s = states = {}
-for ss in (boolean, occupancy, status, commanded_state, run_state, switch, mode ):
-    states.update(ss)
-del ss
-del _
 
-
-# from int or bool, requires knowing the group
-
-from typing import Literal
+from typing import Literal, Callable
 from functools import cache
 @cache # make it a lookup 
-def convert(state: State | str, dtype: Literal['int'] | Literal['bool'] = 'int') -> int | bool:
-    if isinstance(state, str):
-        state = states[str(State(state))]
-    else:
-        assert(isinstance(state, State))
-    
-    if dtype == 'int':
-        value = int(state)
-    else:
-        assert(dtype == 'bool')
-        value = bool(state)
-    return value
+def convert(
+        frm: State | str | int | bool,
+        to: Literal['int'] | Literal['bool'] | Literal['str'] = 'int',
+        *,
+        group: str | None = None,
+        groups: Groups | Callable[[], Groups] = groups) \
+            -> int | bool | str:
+    assert(to in {'int', 'bool', 'str'})
+    fmap = {'int': int, 'bool': bool, 'str': str}
+    if isinstance(groups, Callable): groups = groups()
 
-
+    if isinstance(frm, State):
+        return fmap[to](frm)
+    elif isinstance(frm, str):
+        if group:
+            s = groups[group][frm]
+            return fmap[to](s)
+        else:
+            for n, g in groups.items():
+                for s in g:
+                    if State(frm).normalize() == (s).normalize():
+                        return fmap[to](s)
+    else:
+        assert(type(frm) in (int, bool))
+        if not group:
+            raise ValueError('need group to convert from a number or bool')
+        g = groups[group]
+        s = g[frm]
+        return fmap[to](s)
+    raise ValueError('unhandled conversion')
