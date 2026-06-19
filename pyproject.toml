@@ -31,7 +31,7 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 
 
 [project.scripts]
-g36conftest = "g36conftest.cli:cli"
+g36conftest = "g36conftest.cli:run_main"
 
 
 [dependency-groups]

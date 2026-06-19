@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 from pathlib import Path
+from datetime import datetime
 import math
 from .utils.config_loader import load_config
 from .conversion.units import convert
@@ -231,7 +232,8 @@ class Test:
                 fp.write(column_names)
             else:
                 fp = open(file, "a")
-            timestamp = str(self.controller.get_current_time())
+            epochtime = self.controller.get_current_time()
+            timestamp = datetime.fromtimestamp(epochtime).strftime('%Y-%m-%d %H%M:%S')
             values = timestamp+','+','.join([str(value) for value in points.values()])+'\n'
             fp.write(values)
 
@@ -463,11 +465,11 @@ class Test:
             if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
-                if seconds_since_start%60 == 0:
+                if seconds_since_start%5 == 0:
                     if last_print == None or last_print != seconds_since_start/60:
                         last_print = seconds_since_start/60
                         label = self.step_labels[self.current_step-1] if self.current_step-1 < len(self.step_labels) else f"step{self.current_step}"
-                        print("Completed minute %d of %s of the test; Current values="%(int(seconds_since_start/60), self._get_step_label(self.current_step)))
+                        print("Completed minute %d of %s of the test; Current values="%(seconds_since_start/60, self._get_step_label(self.current_step)))
                         self.print_points(to_csv=to_csv, name=name)
         # If time condition met, end test step
         # Update current time
@@ -696,8 +698,6 @@ class Test:
                 return value
             else:
                 try:
-                    print('Currently in the first try block')
-                    print(f'The expression is {expression}')
                     float_value = float(expression)
                 except Exception as e:
                     print("WARNING: cannot find variable to check %s"%expression)

@@ -5,12 +5,12 @@ This module provides a device implementation for testing physical or virtual
 BACnet controllers using the BAC0 library.
 """
 
-from .device.base_device import BaseDevice, Point
+from .base_device import BaseDevice, Point
 import BAC0
 import pandas as pd
 import time
 from pathlib import Path
-
+import asyncio
 
 class BacnetDevice(BaseDevice):
     """
@@ -60,79 +60,40 @@ class BacnetDevice(BaseDevice):
         config
             Device configuration
         """
+
+        BAC0.log_level('error')
+
         self.network_address = config["network_address"]
         self.device_address = config["device_address"]
         self.device_id = config["device_id"]
-        
-        # Connect to BACnet network
-        self.bacnet = BAC0.connect(ip=self.network_address)
-        
-        # Connect to specific device
-        self.device = BAC0.device(
-            address=self.device_address,
-            device_id=self.device_id,
-            network=self.bacnet,
-            poll=5
-        )
-        
+
         # Load point mapping from CSV
         # CSV should have columns: 'Variable Name' and 'BACnet Name' (device name)
         # Can optionally include other metadata columns
-        files_folder = Path(__file__).resolve().parent.parent / "files"
-        df_mapping = pd.read_csv(files_folder / config["point_map"], header=3, index_col='BACnet Name')
+        # Resolve paths relative to project root
+        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        # Read point map CSV (skip first 3 header rows, use 'Variable Name' as index)
+        df_pointmap = pd.read_csv(project_root / config["point_map"], header=3, index_col='Variable Name')
         
-        # Create mapping DataFrame: index=bacnet_name, column=name_in_test
-        self.mapping = df_mapping[['Variable Name']].rename(columns={'Variable Name': 'name_in_test'})
-        self.mapping.index.name = 'bacnet_name'
-        
-        # Get BACnet point properties from device
-        point_properties_df = self.device.points_properties_df().T
-        
-        # Merge with mapping to get final point properties
-        point_properties_df = pd.merge(
-            left=point_properties_df,
-            right=self.mapping,
-            how='inner',
-            left_index=True,
-            right_index=True
-        )
-        
-        # Create Point objects from merged properties
-        self._create_points_from_properties(point_properties_df)
-        
-        # Store for compatibility
-        self._point_properties_df = point_properties_df
-        
-        # Reset device with filtered object list
-        object_list = point_properties_df.apply(
-            lambda x: (x['type'], x['address']),
-            axis=1
-        ).values.tolist()
-        self.reset_device(object_list=object_list)
-
-    def _create_points_from_properties(self, properties_df):
-        """
-        Create Point objects from BACnet properties DataFrame.
-        
-        Parameters
-        ----------
-        properties_df
-            DataFrame with BACnet point properties
-        """
-        for bacnet_name in properties_df.index:
-            row = properties_df.loc[bacnet_name]
-            
+        # Process each point and create Point objects
+        for test_name in df_pointmap.index:
+            if not isinstance(test_name, str):
+                continue
+                
+            row = df_pointmap.loc[test_name]
+            bacnet_name = row['BACnet Name']
             point = Point(
                 name=bacnet_name,
-                name_in_test=row['name_in_test'],
-                unit_in_test=row.get('units', None),
+                name_in_test=test_name,
+                unit_in_test=row['Unit'],
+                unit_in_device=row['BACnet Unit'],
                 point_type=row.get('type', None),
-                causality=row.get('type', None),  # BACnet uses 'type' (e.g., 'analogInput')
+                causality=row.get('type', None),
                 metadata={
-                    'address': row.get('address', None),
-                    'object_type': row.get('type', None),
-                    'description': row.get('description', ''),
-                    'priority_array': row.get('priorityArray', None)
+                    'bacnet_address': row.get('BACnet Address', None),
+                    'bacnet_object_type': row.get('BACnet Object Type', None),
+                    'bacnet_object_id': row.get('BACnet Object ID', ''),
+                    'bacnet_description': row.get('BACnet Description', '')
                 }
             )
             
@@ -144,9 +105,30 @@ class BacnetDevice(BaseDevice):
         
         Returns
         -------
-        DataFrame with BACnet point names as index and test names in 'name_in_test' column
+        DataFrame with device point names as index and test names in 'name_in_test' column
         """
-        return self._point_properties_df
+        # Build DataFrame from Point objects
+        data = []
+        for point_name, point in self.points.items():
+            data.append({
+                'name': point_name,
+                'name_in_test': point.name_in_test,
+                'unit_in_test': point.unit_in_test,
+                'BACnet Unit': point.unit_in_device,
+                'point_type': point.point_type,
+                'causality': point.causality,
+                'address': point.metadata.get('address'),
+                'object_type': point.metadata.get('object_type'),
+                'description': point.metadata.get('description'),
+                'priority_array': point.metadata.get('priority_array')
+            })
+        
+        df = pd.DataFrame(data)
+        # Filter out any points without a name (device name)
+        df = df.dropna(subset=['name'])
+        df = df.set_index('name')
+        
+        return df
 
     def reset_device(self, object_list=None):
         """
@@ -189,11 +171,24 @@ class BacnetDevice(BaseDevice):
         value
             Value to write
         """
-        try:
-            self.device[point_name] = value
-            self._cache_point_value(point_name, value)
-        except Exception as e:
-            print(f"Error setting {point_name}: {e}")
+
+        if value is not None:
+            point = self.get_point(point_name)
+            write_str = '{0} {1} {2} {3} {4} - {5}'.format(point.metadata['bacnet_address'],
+                                                           point.metadata['bacnet_object_type'],
+                                                           int(point.metadata['bacnet_object_id']),
+                                                           'presentValue',
+                                                           value,
+                                                           1)
+            async def _run():
+                async with BAC0.start(ip='127.0.0.1/8') as bacnet:
+                    try:
+                        await bacnet._write(write_str)
+                        self._cache_point_value(point_name, value)
+                    except Exception as e:
+                        print(f"Error setting {point_name}: {e}")
+
+            asyncio.run(_run())
 
     def set_multiple_points(self, point_value_dict):
         """
@@ -224,13 +219,22 @@ class BacnetDevice(BaseDevice):
         -------
         Current value from BACnet device
         """
-        try:
-            value = self.device[variable_name].value
-            self._cache_point_value(variable_name, value)
-            return value
-        except Exception as e:
-            print(f"Error reading {variable_name}: {e}")
-            return None
+        point = self.get_point(variable_name)
+        read_str = '{0} {1}:{2} {3}'.format(point.metadata['bacnet_address'],
+                                            point.metadata['bacnet_object_type'],
+                                            int(point.metadata['bacnet_object_id']),
+                                            'presentValue')
+        async def _run():
+            async with BAC0.start(ip='127.0.0.1/8') as bacnet:
+                try:
+                    value = await bacnet.read(read_str)
+                    self._cache_point_value(variable_name, value)
+                    return value
+                except Exception as e:
+                    print(f"Error reading {variable_name}: {e}")
+                    return None
+            
+        return asyncio.run(_run())
     
     def wait(self, duration):
         """
