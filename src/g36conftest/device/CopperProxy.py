@@ -59,6 +59,8 @@ import os
 import time
 import json
 import rdflib
+from pathlib import Path
+from ..utils.config_loader import load_config
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.consolelogging import ConfigArgumentParser
@@ -339,13 +341,25 @@ def main():
     global nextState, controller
     
     from .simulation_device import SimulationDevice
-    device_config = {
-        'model_filepath': 'conformance_tests/foo/simulation_files/testscript_foo_fmu.mo',
-        'model_mopath': 'testscript_foo_fmu',
-        'compile_fmu': True,
-        'fmu_filepath': 'conformance_tests/foo/simulation_files/build/testscript_foo_fmu.fmu',
-        'point_map': 'conformance_tests/foo/config/pointmap-foo.csv'
-        }
+    # Set paths relative to this file's location
+    SRC_FOLDER = Path(__file__).resolve().parent.parent.parent
+    PROJECT_ROOT = SRC_FOLDER.parent
+    
+    # Convert string paths to Path objects if provided
+    global_config_path_obj = None
+    test_config_path_obj = None
+    
+    # Load configuration from global and test-specific files
+    config = load_config(
+        PROJECT_ROOT,
+        global_config_path=global_config_path_obj,
+        test_config_path=test_config_path_obj,
+        force_device='simulation'
+    )
+    
+    # Extract config sections
+    device_config = config['device']
+
     controller = SimulationDevice(device_config=device_config)
 
     status, message, payload = controller.sim.initialize(0) 
@@ -369,7 +383,7 @@ def main():
     # make a sample application
     this_application = ReadPropertyMultipleApplication(this_device, args.ini.address)
 
-    file_name = 'conformance_tests/foo/config/foo.ttl'
+    file_name = 'conformance_tests/{0}/config/{0}.ttl'.format(config['test_type'])
     create_objects(this_application, file_name, oncommand)
 
     # run this update when the stack is ready

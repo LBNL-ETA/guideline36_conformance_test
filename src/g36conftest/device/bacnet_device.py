@@ -51,6 +51,65 @@ class BacnetDevice(BaseDevice):
         super().__init__(device_config)
         self.init_device(config=device_config)
 
+    def run_write(self):
+        # Start async process to write points
+        async def _run_write():
+            # Start BAC0 network
+            async with BAC0.start(ip='127.0.0.1/8') as bacnet:
+                # Write points
+                write_arg = []
+                for point_name, point in self.points.items():
+                    if point.value is not None:
+                        if point.metadata['bacnet_object_type'] == 'analogOutput':
+                            write_str = '{0} {1} {2} {3} {4} - {5}'.format(point.metadata['bacnet_address'],
+                                                                        point.metadata['bacnet_object_type'],
+                                                                        int(point.metadata['bacnet_object_id']),
+                                                                        'presentValue',
+                                                                        point.value,
+                                                                        1)
+                            # Try writing point
+                            s = time.time()
+                            try:
+                                await bacnet._write(write_str)
+                            except Exception as e:
+                                print(f"Error writing point {0}: {e}".format(point.name))
+
+        asyncio.run(_run_write())
+
+    def run_read(self):
+        # Start async process to read points
+        async def _run_read():
+            # Start BAC0 network
+            async with BAC0.start(ip='127.0.0.1/8') as bacnet:              
+                # Build argument for point reader
+                i = 1
+                for point_name, point in self.points.items():
+                    if point.metadata['bacnet_object_type'] == 'analogInput':
+                        if i == 1:
+                            address = point.metadata['bacnet_address']
+                            read_arg = {'address' : address}
+                            read_arg['objects'] = {'{0}:{1}'.format(point.metadata['bacnet_object_type'], int(point.metadata['bacnet_object_id'])) : ['presentValue']}
+                        else:
+                            read_arg['objects']['{0}:{1}'.format(point.metadata['bacnet_object_type'], int(point.metadata['bacnet_object_id']))] = ['presentValue']
+                        i = i + 1
+
+                # Try reading all points
+                s = time.time()
+                try:
+                    res = await bacnet.readMultiple(address, request_dict = read_arg)
+                except Exception as e:
+                    print(f"Error reading points: {e}")
+                print('Read points in {0} seconds'.format(time.time() - s))
+                
+                # Interpret read results
+                for r in res:
+                    for point_name, point in self.points.items():
+                        if int(r.split(',')[1]) == point.metadata['bacnet_object_id']:
+                            value = res[r][0][1]
+                            self._cache_point_value(point.name, value)
+
+        asyncio.run(_run_read())      
+
     def init_device(self, config):
         """
         Initialize BACnet connection and point mapping.
@@ -174,21 +233,10 @@ class BacnetDevice(BaseDevice):
 
         if value is not None:
             point = self.get_point(point_name)
-            write_str = '{0} {1} {2} {3} {4} - {5}'.format(point.metadata['bacnet_address'],
-                                                           point.metadata['bacnet_object_type'],
-                                                           int(point.metadata['bacnet_object_id']),
-                                                           'presentValue',
-                                                           value,
-                                                           1)
-            async def _run():
-                async with BAC0.start(ip='127.0.0.1/8') as bacnet:
-                    try:
-                        await bacnet._write(write_str)
-                        self._cache_point_value(point_name, value)
-                    except Exception as e:
-                        print(f"Error setting {point_name}: {e}")
-
-            asyncio.run(_run())
+            try:
+                self._cache_point_value(point_name, value)
+            except Exception as e:
+                print(f"Error setting {point_name}: {e}")
 
     def set_multiple_points(self, point_value_dict):
         """
@@ -220,22 +268,16 @@ class BacnetDevice(BaseDevice):
         Current value from BACnet device
         """
         point = self.get_point(variable_name)
-        read_str = '{0} {1}:{2} {3}'.format(point.metadata['bacnet_address'],
-                                            point.metadata['bacnet_object_type'],
-                                            int(point.metadata['bacnet_object_id']),
-                                            'presentValue')
-        async def _run():
-            async with BAC0.start(ip='127.0.0.1/8') as bacnet:
-                try:
-                    value = await bacnet.read(read_str)
-                    self._cache_point_value(variable_name, value)
-                    return value
-                except Exception as e:
-                    print(f"Error reading {variable_name}: {e}")
-                    return None
-            
-        return asyncio.run(_run())
-    
+        value = point.value
+        
+        return value
+
+    def get_variable_value_from_prev_time_step(self, variable_name):
+        
+        value = self.get_current_variable_value(variable_name)
+        
+        return value
+       
     def wait(self, duration):
         """
         Wait for specified real-time duration.
@@ -245,7 +287,20 @@ class BacnetDevice(BaseDevice):
         duration
             Time to wait in seconds (wall clock time)
         """
-        time.sleep(duration)
+
+        print('Waiting {0} seconds for controller to run...'.format(duration))
+        # Calculate actual sleep time considering latency in setting up bacnet network 
+        # to read and write and that the network set up time is about equal for read and write
+        # Write points to controller and measure current network set up time
+        s = time.time()
+        self.run_write()
+        set_up_network_time = time.time() - s
+        sleep_time = max(duration - set_up_network_time*2,0)
+        # Wait for controller to process
+        time.sleep(sleep_time)
+        # Read points from controller
+        self.run_read()
+
     
     def get_current_time(self):
         """
