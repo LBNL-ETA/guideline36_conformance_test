@@ -444,8 +444,6 @@ class SimulationDevice(BaseDevice):
         # test case: mess up above paths.
         # process prints out errors but returncode=0
         
-        print(f'OpenModelica finished compiling.')
-        
         # Move compiled FMU to expected location (simulation_files/ directory)
         print(f'OpenModelica finished compiling {fmu_path}.')
 
