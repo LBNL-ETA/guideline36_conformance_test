@@ -19,7 +19,7 @@ simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
 # no windows wheel.
 # otherwise this is almost a std standard python project.
 [tool.pixi.feature.simulation.dependencies]
-pyfmi = '*'  # get pyfmi from conda (overrides above)
+pyfmi = '>=2.20'  # get pyfmi from conda (overrides above)
 [tool.pixi.feature.simulation.target.linux-64.dependencies]
 omcompiler = '*'                                            # openmodelica only available on linux64
 [tool.pixi.feature.simulation.target.win-64.dependencies]   # but not other platforms (install it some other way)
