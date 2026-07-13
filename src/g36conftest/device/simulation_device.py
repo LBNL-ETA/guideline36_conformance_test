@@ -68,7 +68,7 @@ class SimulationDevice(BaseDevice):
             Device configuration
         """
         # Resolve paths relative to project root
-        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        project_root = Path('.') # todo: should consolidate 'project_root's
         
         self.model_filepath = project_root / device_config["model_filepath"]
         self.model_mopath = device_config["model_mopath"]
@@ -383,13 +383,17 @@ class SimulationDevice(BaseDevice):
             Parameter values to set during compilation
         """
         # Write .mos script to build directory using absolute paths
+        self.build_dir = self.build_dir.resolve()
         mos_script = self.build_dir / 'compile_fmu.mos'
         with open(mos_script, 'w') as f:
             f.write('installPackage(Modelica, "4.0.0", exactMatch=false);\n')
             f.write('installPackage(Buildings, "11.0.0", exactMatch=true);\n')
             # Uncomment to load Buildings from local:
             # f.write('loadFile("buildings/modelica-buildings/Buildings/package.mo");\n')
-            f.write(f'loadFile("{model_filepath.as_posix()}");\n')
+            # 'simple' but machine specific
+            f.write(f'loadFile("{model_filepath.resolve().as_posix()}");\n')
+            # 'nicer' not specific to machine. but the generated files are machine-specific anyways
+            #f.write(f'loadFile("{model_filepath.resolve().relative_to(self.build_dir, walk_up=True).as_posix()}");\n')
             f.write('setCommandLineOptions("--fmiFlags=s:cvode");\n')
             f.write('setCommandLineOptions("--fmiFilter=internal");\n')
             
@@ -405,14 +409,19 @@ class SimulationDevice(BaseDevice):
         # Execute OpenModelica compilation with absolute path to script
         print(f"Compiling FMU, artifacts will be in: {self.build_dir}")
         # Run omc with cwd=build_dir so log file goes there
-        process = subprocess.Popen(['omc', str(mos_script)], cwd=str(self.build_dir))
+        process = subprocess.Popen(['omc', str(mos_script)], cwd=str(self.build_dir), )
         
         # Poll until completion
+        print(f'Waiting for OpenModelica to finish compiling {fmu_path}.')
         while process.poll() is None:
-            time.sleep(10)
-            print(f'Waiting for OpenModelica to finish compiling {fmu_path}. Checking again in 10 seconds...')
-        
-        print(f'OpenModelica finished compiling.')
+            time.sleep(1)
+        assert(isinstance(process.returncode, int))
+        if process.returncode != 0:
+            print('Compilation Error.')
+            exit(process.returncode)
+        # TODO: add more process check robustness. check stdout and stderr.
+        # test case: mess up above paths.
+        # process prints out errors but returncode=0
         
         # Move compiled FMU to expected location (simulation_files/ directory)
         print(f'OpenModelica finished compiling {fmu_path}.')

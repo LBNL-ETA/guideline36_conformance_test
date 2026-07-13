@@ -29,9 +29,7 @@ class Test:
         device_init : bool, optional
             Whether to initialize device. Default is True.
         """
-        # Set paths relative to this file's location
-        self.SRC_FOLDER = Path(__file__).resolve().parent.parent
-        self.PROJECT_ROOT = self.SRC_FOLDER.parent
+        self.PROJECT_ROOT = Path('.') # current dir
         
         # Convert string paths to Path objects if provided
         global_config_path_obj = Path(global_config_path) if global_config_path else None
