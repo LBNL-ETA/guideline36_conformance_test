@@ -24,9 +24,11 @@ class Point:
     name_in_test
         Human-readable name used in test scripts
     value (optional)
-        Current value of the point
-    unit (optional)
-        Engineering unit (e.g., 'F', 'cfm', 'percent')
+        Current value of the point in device units
+    unit_in_test (optional)
+        Engineering unit in test scripts (e.g., 'F', 'cfm', 'percent')
+    unit_in_device (optional)
+        Engineering unit in device (e.g., 'C', 'm3/s', 'dimensionless')
     point_type (optional)
         Type information (e.g., 'Boolean', 'Real', 'Integer')
     causality (optional)
@@ -38,7 +40,8 @@ class Point:
     name: str
     name_in_test: str
     value: any = None
-    unit: str = None
+    unit_in_test: str = None
+    unit_in_device: str = None
     point_type: str = None
     causality: str = None
     metadata: dict = field(default_factory=dict)
@@ -220,7 +223,7 @@ class BaseDevice(ABC):
     
     def _cache_point_value(self, point_name, value):
         """
-        Update the cached value in a Point object
+        Update the cached value in a Point object in device units
         
         The intent of this internal method is to keep the Point.value attribute
         in sync with the actual device state. It should be called in conjunction with
@@ -232,11 +235,13 @@ class BaseDevice(ABC):
         
         Parameters
         ----------
-        point_name
+        point_name: str
             Device-specific point name
-        value
+        value: numeric
             New value to cache
+
         """
+
         if point_name in self.points:
             self.points[point_name].value = value
     

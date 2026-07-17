@@ -123,6 +123,7 @@ class SimulationDevice(BaseDevice):
             cdl_block = row['CDL Block']
             cdl_name = row['CDL Name']
             cdl_type = row['CDL Type']
+            cdl_unit = row['CDL Unit']
             unit = row['Unit']
             
             # Determine CDL path based on causality
@@ -147,7 +148,8 @@ class SimulationDevice(BaseDevice):
             point = Point(
                 name=cdl_path,
                 name_in_test=test_name,
-                unit=unit,
+                unit_in_test=unit,
+                unit_in_device=cdl_unit,
                 point_type=cdl_type,
                 causality=causality,
                 metadata={
@@ -175,7 +177,8 @@ class SimulationDevice(BaseDevice):
             data.append({
                 'name': point_name,
                 'name_in_test': point.name_in_test,
-                'Unit': point.unit,
+                'unit_in_test': point.unit_in_test,
+                'CDL Unit': point.unit_in_device,
                 'CDL Type': point.point_type,
                 'CDL Causality': point.causality,
                 'CDL Block': point.metadata.get('cdl_block', ''),
@@ -192,25 +195,22 @@ class SimulationDevice(BaseDevice):
 
     def set_single_point(self, point_name, value):
         """
-        Set a single point value with unit conversion.
+        Set a single point value with device units.
         
         Parameters
         ----------
-        point_name
+        point_name: str
             CDL path of the point
-        value
-            Value to set (in test units)
+        value: numeric
+            Value to set in device units
         """
         point = self.get_point(point_name)
         if point is None:
             print(f"Warning: Point {point_name} not found")
             return
         
-        # Convert from test units to device units
-        converted_value = self._unit_conversion(value, point.unit, point.point_type)
-        
         # Update cached value
-        self._cache_point_value(point_name, converted_value)
+        self._cache_point_value(point_name, value)
 
     def get_current_variable_value(self, variable_name):
         """
@@ -223,7 +223,7 @@ class SimulationDevice(BaseDevice):
             
         Returns
         -------
-        Current value from FMU, or None if simulation hasn't been started yet
+        Current value from FMU in device units, or None if simulation hasn't been started yet
         """
         if self.sim is None:
             raise RuntimeError("Simulation not initialized")
@@ -257,27 +257,6 @@ class SimulationDevice(BaseDevice):
         _,_,data = self.sim.get_results([var], start_time, final_time)
 
         return data[var][-1]
-
-    def convert_value_test_unit_to_device_unit(self, point_name, value):   # not being used!
-        """
-        Convert a value from test units to device (FMU) units.
-        
-        Parameters
-        ----------
-        point_name
-            CDL path of the point
-        value
-            Value in test units
-            
-        Returns
-        -------
-        Value in device units
-        """
-        point = self.get_point(point_name)
-        if point is None:
-            return value
-        
-        return self._unit_conversion(value, point.unit, point.point_type)
 
     def get_current_time(self):
         """
@@ -404,13 +383,17 @@ class SimulationDevice(BaseDevice):
             Parameter values to set during compilation
         """
         # Write .mos script to build directory using absolute paths
+        self.build_dir = self.build_dir.resolve()
         mos_script = self.build_dir / 'compile_fmu.mos'
         with open(mos_script, 'w') as f:
             f.write('installPackage(Modelica, "4.0.0", exactMatch=false);\n')
             f.write('installPackage(Buildings, "11.0.0", exactMatch=true);\n')
             # Uncomment to load Buildings from local:
             # f.write('loadFile("buildings/modelica-buildings/Buildings/package.mo");\n')
-            f.write(f'loadFile("{model_filepath.as_posix()}");\n')
+            # 'simple' but machine specific
+            f.write(f'loadFile("{model_filepath.resolve().as_posix()}");\n')
+            # 'nicer' not specific to machine. but the generated files are machine-specific anyways
+            #f.write(f'loadFile("{model_filepath.resolve().relative_to(self.build_dir, walk_up=True).as_posix()}");\n')
             f.write('setCommandLineOptions("--fmiFlags=s:cvode");\n')
             f.write('setCommandLineOptions("--fmiFilter=internal");\n')
             
@@ -426,14 +409,19 @@ class SimulationDevice(BaseDevice):
         # Execute OpenModelica compilation with absolute path to script
         print(f"Compiling FMU, artifacts will be in: {self.build_dir}")
         # Run omc with cwd=build_dir so log file goes there
-        process = subprocess.Popen(['omc', str(mos_script)], cwd=str(self.build_dir))
+        process = subprocess.Popen(['omc', str(mos_script)], cwd=str(self.build_dir), )
         
         # Poll until completion
+        print(f'Waiting for OpenModelica to finish compiling {fmu_path}.')
         while process.poll() is None:
-            time.sleep(10)
-            print(f'Waiting for OpenModelica to finish compiling {fmu_path}. Checking again in 10 seconds...')
-        
-        print(f'OpenModelica finished compiling.')
+            time.sleep(1)
+        assert(isinstance(process.returncode, int))
+        if process.returncode != 0:
+            print('Compilation Error.')
+            exit(process.returncode)
+        # TODO: add more process check robustness. check stdout and stderr.
+        # test case: mess up above paths.
+        # process prints out errors but returncode=0
         
         # Move compiled FMU to expected location (simulation_files/ directory)
         print(f'OpenModelica finished compiling {fmu_path}.')
