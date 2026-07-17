@@ -12,7 +12,7 @@
 # 5. Run: python src/Test.py [options]
 
 # Test type identifier (must match directory name)
-test_type: foo
+test_type: foo_units
 
 # =============================================================================
 # DEVICE CONFIGURATIONS
@@ -34,7 +34,7 @@ device:
     
     # Whether to compile FMU from .mo file
     # Options: true (compile from .mo), false (use existing .fmu)
-    compile_fmu: false
+    compile_fmu: true
     
     # Path to compiled FMU file (optional, auto-generated if not specified)
     # Build artifacts will be written to simulation_files/build/
