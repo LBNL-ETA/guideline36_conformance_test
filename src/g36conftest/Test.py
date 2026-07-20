@@ -392,7 +392,8 @@ class Test:
         # Check if time condition is met to end test step
         while int(current_time - st) < condition['ClockTime']:
             # Update seconds_since_start
-            seconds_since_start = int(current_time - st)
+            seconds_since_start_exact = current_time - st
+            seconds_since_start = round(seconds_since_start_exact)
             # Compute and set new input values for all ramps and periodics at this step
             for obj in Ramp.instances:
                 if obj.params['ramp_step']:                 
@@ -464,10 +465,10 @@ class Test:
                 self.controller.wait(wait_duration) 
                 current_time = self.controller.get_current_time()  
             else:
-                print('In test step {0}, {1} seconds since start of step.  Waiting remainder of 10 second period.'.format(self._get_step_label(self.current_step), seconds_since_start))
+                print('In test step {0}, {1} ({2}) seconds since start of step.'.format(self._get_step_label(self.current_step), seconds_since_start, seconds_since_start_exact))
                 if pause_time is not None:
                     current_time = self.controller.get_current_time()
-                    wait_duration = 10 - (current_time - pause_time)
+                    wait_duration = 10 - (current_time - st)%10
                 else:
                     current_time = self.controller.get_current_time()
                     wait_duration = 10 - (current_time - st)
@@ -485,12 +486,6 @@ class Test:
                         label = self.step_labels[self.current_step-1] if self.current_step-1 < len(self.step_labels) else f"step{self.current_step}"
                         print("Completed minute %d of %s of the test; Current values="%(seconds_since_start/60, self._get_step_label(self.current_step)))
                         self.print_points(to_csv=to_csv, name=name)
-            # If running bacnet in real time, correct timing so start next step exactly at 10 seconds
-            if device_type != 'simulation':
-                current_time = self.controller.get_current_time()
-                sleep_duration = 10 - (current_time - st)%10
-                time.sleep(sleep_duration)
-                current_time = self.controller.get_current_time()
             
         # If time condition met, end test step
         # Update current time
