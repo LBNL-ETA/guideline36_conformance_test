@@ -1,7 +1,7 @@
 import pytest
-import pytest
 from pathlib import Path
 test_dir = Path(__file__).parent
+
 
 @pytest.fixture(scope='session')
 def cache_dir() ->Path:
@@ -14,28 +14,40 @@ def original_datadir() -> Path:
     return test_dir / "regression-data"
 
 
+@pytest.fixture(params=['foo_units', 'foo' ])
+def gtest(request):
+    """Generates a unique temporary file for each parameter set."""
+    test_type = request.param    
+    global_config_tmpl = test_dir / 'config' / 'global_config_template.yaml'
+    dir = global_config_tmpl.parent
+    pth = dir / f'{test_type}_global_config.yaml'
+    from yaml import safe_load as load
+    ct = load(open(global_config_tmpl))
+    ct['test_type'] = test_type
+    from yaml import dump
+    dump(ct, open(pth, 'w'), indent=4)
+
+    result = Path('conformance_tests') / test_type / 'results' / f'run_{test_type}' / \
+            f'{test_type}_values.csv'
+    if result.exists(): result.unlink() # does not repro if i don't delete
+    gt = GTest(global_config_path=pth)
+    gt._test_result_path = result # att to obj
+    yield gt
+    # cleanup
+    if pth.exists():
+        pth.unlink()
+
 
 from g36conftest.Test import Test as GTest # to not confuse pytest
-gtest = GTest()
-
 import pandas as pd
-
-types = ['foo_units',]
-
-@pytest.mark.parametrize("test_type", types)
-def test_result(test_type, dataframe_regression):
-    name = test_type
-    result = Path('conformance_tests') / name / 'results' / f'run_{name}' / \
-        f'{name}_values.csv'
-    if result.exists(): result.unlink() # does not repro if i don't delete
-    gtest.start_test(to_csv=True, name=name)
-    assert(result.exists())
-
+def test_result(gtest, dataframe_regression):
+    gtest.start_test(to_csv=True, name=gtest.test_type)
+    assert(gtest._test_result_path.exists())
     # conf = Path('conformance_tests') / test_type / 'config' / 'config.yaml'
     # assert(conf.exists())
     # from yaml import safe_load
     # conf = safe_load(open(conf))
-    result = pd.read_csv(result)
+    result = pd.read_csv(gtest._test_result_path)
     dataframe_regression.check(result) # might use text regression
 
 
