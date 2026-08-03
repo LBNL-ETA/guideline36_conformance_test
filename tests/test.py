@@ -47,7 +47,7 @@ def test_result(gtest, dataframe_regression):
     # assert(conf.exists())
     # from yaml import safe_load
     # conf = safe_load(open(conf))
-    result = pd.read_csv(gtest._test_result_path)
+    result = pd.read_csv(gtest._test_result_path).set_index('time')
     dataframe_regression.check(result) # might use text regression
 
 
