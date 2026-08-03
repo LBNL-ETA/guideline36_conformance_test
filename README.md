@@ -52,14 +52,16 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
 
 1. Set up global configuration:
 
-    - Copy `config/global_config_template.yaml` to `config/global_config.yaml` and fill in:
-        - `test_type`: which conformance test to run (e.g., `vav_rh`)
+    - Create new directory `config`
+    - Copy `tests/config/global_config_template.yaml` to `config/global_config.yaml` and fill in:
+        - `test_type`: which conformance test to run (e.g., `foo`)
         - `device_type`: `simulation` or `bacnet`
         - `test_runner` options: `save_csv`, `print_output`, `reset_points`
 
 2. Configure the specific test:
 
-    - Copy `conformance_tests/{test_type}/config/config_template.yaml` to `config.yaml` in the same directory and fill in:
+    - Create new directory `conformance_tests` 
+    - Copy `tests/conformance_tests/{any_test_type}/config/config_template.yaml` to `conformance_tests/{test_type}/config/config.yaml` in the same directory and fill in:
         - Device settings for both simulation and bacnet
         - Test script filename
         - Point mapping file path

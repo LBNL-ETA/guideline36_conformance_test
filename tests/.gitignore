@@ -1,0 +1,13 @@
+# Add exceptions for example tests
+# foo
+!conformance_tests/foo/config/pointmap-foo.csv
+!conformance_tests/foo/simulation_files/testscript_foo_fmu.mo
+!conformance_tests/foo/test_scripts/TestScript-foo.xlsx
+# foo_units
+!conformance_tests/foo_units/config/pointmap-foo-units.csv
+!conformance_tests/foo_units/simulation_files/testscript_foo_units_fmu.mo
+!conformance_tests/foo_units/test_scripts/TestScript-foo-units.xlsx
+
+# Test results 
+conformance_tests/*/results/run_*/
+!conformance_tests/*/results/.gitkeep
