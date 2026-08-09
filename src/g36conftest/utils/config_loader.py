@@ -49,10 +49,11 @@ def load_config(
         If required fields are missing or invalid
     """
     # Resolve global config path
+
     if global_config_path is None:
-        global_config_path = project_root / "config" / "global_config.yaml"
+        global_config_path = project_root / "tests"/"config" / "global_config.yaml"
     elif not global_config_path.is_absolute():
-        global_config_path = project_root / global_config_path
+        global_config_path = project_root / "tests"/ global_config_path
     if not global_config_path.exists():
         raise FileNotFoundError(
             f"Global config not found at {global_config_path}. "
@@ -73,9 +74,9 @@ def load_config(
     
     # Resolve test-specific config path
     if test_config_path is None:
-        test_config_path = project_root / "conformance_tests" / test_type / "config" / "config.yaml"
+        test_config_path = project_root / "tests"/ "conformance_tests" / test_type / "config" / "config.yaml"
     elif not test_config_path.is_absolute():
-        test_config_path = project_root / test_config_path
+        test_config_path = project_root / "tests"/ test_config_path
     if not test_config_path.exists():
         raise FileNotFoundError(
             f"Test config not found at {test_config_path}. "

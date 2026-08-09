@@ -45,7 +45,7 @@ class Test:
         # Extract config sections
         self.test_type = self.config['test_type']
         self.device_type = self.config['device_type']
-        self.test_base_dir = self.PROJECT_ROOT / "conformance_tests" / self.test_type
+        self.test_base_dir = self.PROJECT_ROOT / "tests"/"conformance_tests" / self.test_type
         self.test_scripts_dir = self.test_base_dir / "test_scripts"
         self.results_dir = self.test_base_dir / "results"
 
@@ -331,22 +331,22 @@ class Test:
                     op.get_parameter_dict()                    
                     value_to_set = op.params['periodic_start']
                 elif "=INTERPOLATE(" in val:                    
-                    op = InterpolateOperation(raw_string=val, test_obj=self)                    
+                    op = InterpolateOperation(raw_string=val, test_obj=self, variable=key)                    
                     op.get_parameter_dict()
                     op.compute_value()
                     value_to_set = op.computed_value
                 elif "=ADD(" in val:                    
-                    op = Add(raw_string=val, test_obj=self)
+                    op = Add(raw_string=val, test_obj=self, variable=key)
                     op.get_parameter_dict()
                     op.compute_value()
                     value_to_set = op.computed_value                
                 elif "=SUB(" in val:                    
-                    op = Sub(raw_string=val, test_obj=self)
+                    op = Sub(raw_string=val, test_obj=self, variable=key)
                     op.get_parameter_dict()
                     op.compute_value()
                     value_to_set = op.computed_value
                 elif "=MULT(" in val:                    
-                    op = Mul(raw_string=val, test_obj=self)
+                    op = Mul(raw_string=val, test_obj=self, variable=key)
                     op.get_parameter_dict()
                     op.compute_value()
                     value_to_set = op.computed_value  
@@ -723,7 +723,6 @@ class Ramp(StateOperation):
     instances = []
     
     def __init__(self, raw_string, test_obj, variable):
-        # import pdb; pdb.set_trace()
         super().__init__(raw_string, test_obj, variable)        
         Ramp.instances.append(self)
 
@@ -741,21 +740,21 @@ class Ramp(StateOperation):
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
         if len(string_parameters) < 4:
             self.params = {
-                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
-                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
-                "duration": self.test.evaluate_expression(string_parameters[2]),
-                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_start": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
+                "duration": self.test.evaluate_expression(string_parameters[2], current_variable = self.variable),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1], current_variable = self.variable) - self.test.evaluate_expression(string_parameters[0], current_variable = self.variable))/self.test.evaluate_expression(string_parameters[2], current_variable = self.variable), #self.test.evaluate_expression(string_parameters[2])/60,
                 "ramp_period":10,
-                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+                "ramp_step": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable) != self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
             }
         else:
             self.params = {
-                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
-                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
-                "duration": self.test.evaluate_expression(string_parameters[2]),
-                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
-                "ramp_period":self.test.evaluate_expression(string_parameters[3]),
-                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+                "ramp_start": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
+                "duration": self.test.evaluate_expression(string_parameters[2], current_variable = self.variable),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1], current_variable = self.variable) - self.test.evaluate_expression(string_parameters[0], current_variable = self.variable))/self.test.evaluate_expression(string_parameters[2], current_variable = self.variable), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_period":self.test.evaluate_expression(string_parameters[3], current_variable = self.variable),
+                "ramp_step": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable) != self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
             }
 
     def compute_value(self, seconds_since_start):        
@@ -801,14 +800,14 @@ class Periodic(StateOperation):
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
         if len(string_parameters) < 2:
             self.params = {
-                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_start": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),            
                 "periodic_expression": string_parameters[0],
                 "period": 10,
                 "periodic_step": True,
             }
         else:    
             self.params = {
-                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_start": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),            
                 "periodic_expression": string_parameters[0],
                 "period": float(string_parameters[1]),
                 "periodic_step": True,
@@ -819,18 +818,19 @@ class Periodic(StateOperation):
         period = self.params['period']
         #import pdb; pdb.set_trace()
         if seconds_since_start % period == 0:
-            value_to_set = self.test.evaluate_expression(expression=periodic_expression)
+            value_to_set = self.test.evaluate_expression(expression=periodic_expression, current_variable = self.variable)
             var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
             print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
             self.computed_value = value_to_set
 
 class StateLessOperation:
     OP_TOKEN = None 
-    def __init__(self, raw_string, test_obj):
+    def __init__(self, raw_string, test_obj, variable):
         self.raw_string = raw_string
         self.test = test_obj
         self.params = {}
         self.computed_value = None
+        self.variable = variable
 
     def get_parameter_dict(self):
         """Each child overrides this to extract parameters from the raw string."""
@@ -875,8 +875,8 @@ class TwoTermOperation(StateLessOperation):
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
 
         self.params = {
-            "first_term": self.test.evaluate_expression(string_parameters[0]),
-            "second_term": self.test.evaluate_expression(string_parameters[1]),
+            "first_term": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),
+            "second_term": self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
         }
 
     def compute_value(self):
@@ -909,17 +909,17 @@ class InterpolateOperation(StateLessOperation):
         val = self.raw_string.split(self.OP_TOKEN)[1][:-1]      
         string_parameters = self.split_top_level_semicolons(val)
         string_parameters = [s.replace(' ', '') for s in string_parameters]
-        self.params['x'] = self.test.evaluate_expression(expression=string_parameters[0])
-        self.params['x0'] = self.test.evaluate_expression(expression=string_parameters[1])        
-        self.params['x1'] = self.test.evaluate_expression(expression=string_parameters[2])        
-        self.params['y0'] = self.test.evaluate_expression(expression=string_parameters[3])        
-        self.params['y1'] = self.test.evaluate_expression(expression=string_parameters[4]) 
+        self.params['x'] = self.test.evaluate_expression(expression=string_parameters[0], current_variable = self.variable)
+        self.params['x0'] = self.test.evaluate_expression(expression=string_parameters[1], current_variable = self.variable)        
+        self.params['x1'] = self.test.evaluate_expression(expression=string_parameters[2], current_variable = self.variable)        
+        self.params['y0'] = self.test.evaluate_expression(expression=string_parameters[3], current_variable = self.variable)        
+        self.params['y1'] = self.test.evaluate_expression(expression=string_parameters[4], current_variable = self.variable) 
         if len(string_parameters) > 5:
-            self.params['min_out'] = self.test.evaluate_expression(expression=string_parameters[5]) 
+            self.params['min_out'] = self.test.evaluate_expression(expression=string_parameters[5], current_variable = self.variable) 
         else:
             self.params['min_out'] = None        
         if len(string_parameters) > 6:
-            self.params['max_out'] = self.test.evaluate_expression(expression=string_parameters[6]) 
+            self.params['max_out'] = self.test.evaluate_expression(expression=string_parameters[6], current_variable = self.variable) 
         else:
             self.params['max_out'] = None
         
