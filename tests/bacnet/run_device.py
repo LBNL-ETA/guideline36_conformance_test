@@ -60,7 +60,7 @@ import time
 import json
 import rdflib
 from pathlib import Path
-from ..utils.config_loader import load_config
+from src.g36conftest.utils.config_loader import load_config
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.consolelogging import ConfigArgumentParser
@@ -317,7 +317,7 @@ def main():
 
     parser.add_argument('--app_interval','-ai', type=str, default='5', help="Application refresh interval time in seconds, which triggers simulation advancement and data exchange. Using value 'oncommand' will give user control of refresh upon incrementing a positive integer value of an additional new BACnet point named 'advance'.")
     parser.add_argument('--control_step','-s', type=str, default='5', help="Simulation advance time step in seconds, with each application refresh.")
-
+    
     # parse the command line arguments
     args = parser.parse_args()
     control_step = float(args.control_step)
@@ -340,12 +340,10 @@ def main():
     #
     global nextState, controller
     
-    from .simulation_device import SimulationDevice
-    # Set paths relative to this file's location
-    SRC_FOLDER = Path(__file__).resolve().parent.parent.parent
-    PROJECT_ROOT = SRC_FOLDER.parent
-    
-    # Convert string paths to Path objects if provided
+    from src.g36conftest.device.simulation_device import SimulationDevice
+    # Set Project root path relative to where python being called from
+    PROJECT_ROOT = Path('.')
+    # Global config and test config must be in 'config/' and 'conformace_tests/<test_type>/config/' respectively
     global_config_path_obj = None
     test_config_path_obj = None
     
