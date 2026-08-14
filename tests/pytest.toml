@@ -1,0 +1,5 @@
+# 'defaults' for just issuing 'pytest'
+[pytest]
+python_files = ["test_*.py", "test.py"]
+# too much verbosity for the default/cicd
+#addopts = ["-vvvv", "-s"]

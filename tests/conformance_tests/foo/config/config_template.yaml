@@ -12,7 +12,7 @@
 # 5. Run: python src/Test.py [options]
 
 # Test type identifier (must match directory name)
-test_type: vav_rh
+test_type: foo
 
 # =============================================================================
 # DEVICE CONFIGURATIONS
@@ -27,10 +27,10 @@ device:
   simulation:
     # Path to the Modelica model file (.mo)
     # Can be absolute or relative to project root
-    model_filepath: conformance_tests/vav_rh/simulation_files/testscript_VAVRH_20250129_fmu.mo
+    model_filepath: conformance_tests/foo/simulation_files/testscript_foo_fmu.mo
     
     # Modelica path to the model within the .mo file
-    model_mopath: testscript_VAVRH_20250129_fmu
+    model_mopath: testscript_foo_fmu
     
     # Whether to compile FMU from .mo file
     # Options: true (compile from .mo), false (use existing .fmu)
@@ -38,12 +38,12 @@ device:
     
     # Path to compiled FMU file (optional, auto-generated if not specified)
     # Build artifacts will be written to simulation_files/build/
-    fmu_filepath: conformance_tests/vav_rh/simulation_files/build/testscript_VAVRH_20250129_fmu.fmu
+    fmu_filepath: conformance_tests/foo/simulation_files/build/testscript_foo_fmu.fmu
     
     # Point mapping file - maps test variable names to CDL paths
     # CSV format: header on row 4, columns include 'Variable Name', 'CDL Block', 'CDL Name', etc.
     # Can be absolute or relative to project root
-    point_map: conformance_tests/vav_rh/config/2025-08-26 - VAVRH Point Mapping File - CDL - RevisedBlock.csv
+    point_map: conformance_tests/foo/config/pointmap-foo.csv
     
 
   # ---------------------------------------------------------------------------
@@ -71,10 +71,10 @@ device:
 test:
   # Test script Excel file
   # Path relative to conformance_tests/vav_rh/test_scripts/
-  test_script: '2025-08-26 - VAVRH Test Script Draft 14.xlsx'
+  test_script: 'TestScript-foo.xlsx'
   
   # Excel section headers
   # Customize these if your test script uses different header names
-  input_points_header: "BACnet Inputs"
+  input_points_header: "Inputs"
   conditions_header: "Conditions for Evaluation of Test Step"
-  output_points_header: "BACnet Expected Outputs"
+  output_points_header: "Expected Outputs"

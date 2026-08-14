@@ -35,9 +35,10 @@ g36conftest = "g36conftest.cli:run_main"
 
 
 [dependency-groups]
-# test = ["pytest"]
-# docs = ["sphinx"]
-# dev = [{include-group = "test"}, {include-group = "docs"}]
+test = ["pytest", 'pytest-regressions']
+#'dev' specifically can be for debugging, formatting, ...
+dev = [ {include-group = "test"}, ] # 
+
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -51,9 +52,8 @@ g36conftest = { path = ".", editable = true }
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
-bacnet =    {  features = ["bacnet"],     solve-group = "default" }
-simulation = { features = ["simulation"], solve-group = "default" }
+bacnet =    {  features = ["bacnet",     'test'],   solve-group = "default" }
+simulation = { features = ["simulation", 'test'],   solve-group = "default" }
 
 [tool.pixi.tasks]
-
 
