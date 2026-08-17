@@ -7,7 +7,7 @@ dependencies = [
     "pandas",
     "numpy",
     "openpyxl",
-    'pint',
+    'pint', "pyfmi",
 ]
 
 [project.optional-dependencies] # (not dep group)
@@ -19,7 +19,7 @@ simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
 # no windows wheel.
 # otherwise this is almost a std standard python project.
 [tool.pixi.feature.simulation.dependencies]
-pyfmi = '*'  # get pyfmi from conda (overrides above)
+pyfmi = ">=2.21.0,<3"  # get pyfmi from conda (overrides above)
 [tool.pixi.feature.simulation.target.linux-64.dependencies]
 omcompiler = '*'                                            # openmodelica only available on linux64
 [tool.pixi.feature.simulation.target.win-64.dependencies]   # but not other platforms (install it some other way)
@@ -35,9 +35,10 @@ g36conftest = "g36conftest.cli:cli"
 
 
 [dependency-groups]
-# test = ["pytest"]
-# docs = ["sphinx"]
-# dev = [{include-group = "test"}, {include-group = "docs"}]
+test = ["pytest", 'pytest-regressions']
+#'dev' specifically can be for debugging, formatting, ...
+dev = [ {include-group = "test"}, ] # 
+
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -51,9 +52,8 @@ g36conftest = { path = ".", editable = true }
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
-bacnet =    {  features = ["bacnet"],     solve-group = "default" }
-simulation = { features = ["simulation"], solve-group = "default" }
+bacnet =    {  features = ["bacnet",     'test'],   solve-group = "default" }
+simulation = { features = ["simulation", 'test'],   solve-group = "default" }
 
 [tool.pixi.tasks]
-
 

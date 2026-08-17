@@ -114,36 +114,35 @@ groups = G.s = Groups({
 
 
 
-from typing import Literal, Callable
+from typing import  Callable
 from functools import cache
 @cache # make it a lookup 
 def convert(
         frm: State | str | int | bool,
-        to: Literal['int'] | Literal['bool'] | Literal['str'] = 'int',
+        to: type[str] | type[int] | type[bool] = str, # type[str] complains??
         *,
         group: str | None = None,
         groups: Groups | Callable[[], Groups] = groups) \
             -> int | bool | str:
-    assert(to in {'int', 'bool', 'str'})
-    fmap = {'int': int, 'bool': bool, 'str': str}
+    assert(to in {int, bool, str})
     if isinstance(groups, Callable): groups = groups()
 
     if isinstance(frm, State):
-        return fmap[to](frm)
+        return to(frm)
     elif isinstance(frm, str):
         if group:
             s = groups[group][frm]
-            return fmap[to](s)
+            return to(s)
         else:
             for n, g in groups.items():
                 for s in g:
                     if State(frm).normalize() == (s).normalize():
-                        return fmap[to](s)
+                        return to(s)
     else:
         assert(type(frm) in (int, bool))
         if not group:
             raise ValueError('need group to convert from a number or bool')
         g = groups[group]
         s = g[frm]
-        return fmap[to](s)
+        return to(s)
     raise ValueError('unhandled conversion')
