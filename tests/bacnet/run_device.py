@@ -55,9 +55,7 @@ MIT License.
 
 """
 
-import os
 import time
-import json
 import rdflib
 from pathlib import Path
 from src.g36conftest.utils.config_loader import load_config
@@ -342,7 +340,7 @@ def main():
     
     from src.g36conftest.device.simulation_device import SimulationDevice
     # Set Project root path relative to where python being called from
-    PROJECT_ROOT = Path('.')
+    PROJECT_ROOT = Path('.').resolve()
     # Global config and test config must be in 'config/' and 'conformace_tests/<test_type>/config/' respectively
     global_config_path_obj = None
     test_config_path_obj = None
