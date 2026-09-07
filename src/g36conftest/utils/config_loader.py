@@ -112,5 +112,10 @@ def load_config(
     # Add optional logging config if present
     if 'logging' in global_config:
         merged_config['logging'] = global_config['logging']
-    
+
+    # Optional viz section (opt-in post-test viz launch); passed through so
+    # `cli.py` can read it without re-parsing the global config file.
+    if 'viz' in global_config:
+        merged_config['viz'] = global_config['viz']
+
     return merged_config

@@ -100,6 +100,29 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
 
 Results will be saved to `conformance_tests/{test_type}/results/`
 
+## Visualize a Run
+
+An interactive Streamlit + Plotly UI plots per-run trajectories against
+expected values with tolerance bands, highlights step failures, and offers a
+deviation heatmap and per-step drill-down.
+
+- **Standalone** — open the UI for any past run without running a test:
+
+    ```
+    g36conftest-viz
+    ```
+
+    Then open `http://localhost:8501` on the host (the container exposes 8501
+    via `compose.yaml`).
+
+- **Auto-launch after a test** — set `viz.enabled: true` under the `viz:`
+  section in `config/global_config.yaml` (see the template) and run
+  `g36conftest --csv`. The UI launches automatically once the test finishes
+  and preselects the just-completed run.
+
+The viz reads only the runner's CSV outputs and the Excel test script — the
+runner and its device layer are untouched.
+
 ## Copyright Notice
 
 Guideline 36 Conformance Test Copyright (c) 2019 to 2025, The Regents of the University of California through Lawrence Berkeley National Laboratory, and Battelle Memorial Institute through Pacific Northwest National Laboratory (both subject to receipt of any required approvals from the U.S. Dept. of Energy).

@@ -18,6 +18,7 @@ simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
 # last update dec ~2018.
 # no windows wheel.
 # otherwise this is almost a std standard python project.
+viz = ["streamlit>=1.35", "plotly>=5.20", "pyyaml"]
 [tool.pixi.feature.simulation.dependencies]
 pyfmi = ">=2.21.0,<3"  # get pyfmi from conda (overrides above)
 [tool.pixi.feature.simulation.target.linux-64.dependencies]
@@ -32,6 +33,13 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 
 [project.scripts]
 g36conftest = "g36conftest.cli:cli"
+g36conftest-viz = "viz.launcher:main"
+
+# Both `g36conftest` (in src/g36conftest/) and `viz` (in src/viz/) are packages
+# — tell setuptools to pick up every package under src/ instead of relying on
+# single-package auto-discovery.
+[tool.setuptools.packages.find]
+where = ["src"]
 
 
 [dependency-groups]
@@ -50,10 +58,15 @@ platforms = [
 g36conftest = { path = ".", editable = true }
 
 
+[tool.pixi.feature.viz.pypi-dependencies]
+streamlit = ">=1.35"
+plotly = ">=5.20"
+
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
-bacnet =    {  features = ["bacnet",     'test'],   solve-group = "default" }
-simulation = { features = ["simulation", 'test'],   solve-group = "default" }
+bacnet =    {  features = ["bacnet",     'test', 'viz'],   solve-group = "default" }
+simulation = { features = ["simulation", 'test', 'viz'],   solve-group = "default" }
+viz =        { features = ["viz"],                          solve-group = "default" }
 
 [tool.pixi.tasks]
 

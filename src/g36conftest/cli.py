@@ -69,5 +69,27 @@ def cli():
         # test.print_points()
         test.start_test(to_csv=to_csv, name=name)
 
+        # Opt-in post-test hook: launch the interactive viz UI when both
+        # save_csv and viz.enabled are true. Guarded behind the config so
+        # existing behavior is untouched for anyone who doesn't set it.
+        viz_cfg = test.config.get('viz', {}) or {}
+        if to_csv and viz_cfg.get('enabled', False):
+            try:
+                from viz.launcher import launch_after_test
+            except ImportError as e:
+                print(
+                    "[viz] viz.enabled is true but the viz extras are not "
+                    "installed (streamlit/plotly missing). Install with "
+                    "`pip install .[viz]` or run in the pixi `simulation`/"
+                    f"`bacnet`/`viz` environment. Skipping. ({e})"
+                )
+            else:
+                run_dir = test.results_dir / f"run_{name}"
+                launch_after_test(
+                    run_dir,
+                    port=int(viz_cfg.get('port', 8501)),
+                    address=str(viz_cfg.get('address', '0.0.0.0')),
+                )
+
 if __name__ == "__main__":
     cli()
