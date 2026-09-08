@@ -30,7 +30,7 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 [tool.pixi.feature.simulation.target.osx-arm64.dependencies] # so these are empty to denote not to do anything
 [tool.pixi.feature.simulation.target.linux-aarch64.dependencies] # so these are empty to denote not to do anything
 [tool.pixi.feature.bacnet-test-controller.dependencies]
-python = "3.11.15"
+python = "3.11.15*"
 
 [project.scripts]
 g36conftest = "g36conftest.cli:run_main"
