@@ -26,7 +26,7 @@ Then, to start the test controller:
 
 3. From the same directory as when running ``g36conftest``, start the controller device with:
 
-    ``$ python tests/bacnet/run_device.py -ai 1 -s 1 --ini <path_to_.ini file>``
+    ``$ python <path_to_run_device>/run_device.py -ai 1 -s 1 --ini <path_to_.ini file>``
 
     Use arguments ``-ai`` to set the refresh interval and ``-s`` to set the controller
     advance time step for each refresh.  The script defaults for those arguments 
