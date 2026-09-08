@@ -24,15 +24,18 @@ Then, to start the test controller:
 
     ``$ pixi shell -e bacnet-test-controller``
 
-3. From the root directory of the repository, start the controller device:
+3. From the same directory as when running ``g36conftest``, start the controller device with:
 
-    ``$ python tests/bacnet/run_device.py -ai 1 -s 1``
+    ``$ python tests/bacnet/run_device.py -ai 1 -s 1 --ini <path_to_.ini file>``
 
     Use arguments ``-ai`` to set the refresh interval and ``-s`` to set the controller
     advance time step for each refresh.  The script defaults for those arguments 
     are equal to 5, which would advance the controller 5 seconds every 5 seconds of real time.
     However, we suggest using 1 for each argument as above, advancing the controller 1 second
     every 1 second of real time.
+
+    Use argument ``--ini`` to set the full path to the bacpypes configuration file, which is located
+    at ``tests/bacnet/BACpypes.ini``.
 
 Then, to start the conformance test, use the typical steps associated with running 
 ``g36conftest`` in a separate process.

@@ -161,7 +161,7 @@ class BacnetDevice(BaseDevice):
         # CSV should have columns: 'Variable Name' and 'BACnet Name' (device name)
         # Can optionally include other metadata columns
         # Resolve paths relative to project root
-        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        project_root = Path('.') # todo: should consolidate 'project_root's
         # Read point map CSV (skip first 3 header rows, use 'Variable Name' as index)
         df_pointmap = pd.read_csv(project_root / config["point_map"], header=3, index_col='Variable Name')
         
