@@ -38,7 +38,7 @@ Then, to start the test controller:
     at ``tests/bacnet/BACpypes.ini``.
 
 Then, to start the conformance test, use the typical steps associated with running 
-``g36conftest`` in a separate process.
+``g36conftest`` in a separate process, except specify a ``bacnet`` configuration instead of ``simulation``.
 
 
 
