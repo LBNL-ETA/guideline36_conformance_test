@@ -371,7 +371,7 @@ class Test:
             # Convert value to device units and set in device
             # Handle string/boolean conversions # TODO this is hardcoded and needs to be made device-flexible
             if isinstance(value_to_set, str):
-                value_to_set = _convert_state(value_to_set)
+                value_to_set = _convert_state(value_to_set, int)
             else:
             # Handle all other conversions
                 point = self.controller.get_point(key)
