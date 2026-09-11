@@ -1,4 +1,4 @@
-
+import asyncio
 
 def cli():
     import argparse
@@ -69,5 +69,5 @@ def cli():
         # test.print_points()
         test.start_test(to_csv=to_csv, name=name)
 
-if __name__ == "__main__":
+def run_main():
     cli()

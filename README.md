@@ -36,8 +36,8 @@ $ docker compose down
 
 ### Using Pixi
 
-[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation`.
-`exit` to exit.
+[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation` or 'bacnet' environment
+`pixi shell -e bacnet` depending on the device interface desired.  Use `exit` to exit.
 
 On Windows, you have to manually install [OpenModelica](https://openmodelica.org/).
 The compiler executable, `omc`, will be available on [pixi windows simulation environment activation](./pyproject.toml).

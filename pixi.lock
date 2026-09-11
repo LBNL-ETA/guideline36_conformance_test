@@ -1740,7 +1740,7 @@ packages:
 - pypi: ./
   name: g36conftest
   version: 0.0.1
-  sha256: d489451c4bb0c1f8f870e9facc2a4e88d87cacb4f857271d1e9fba7b6e165401
+  sha256: 283e17d5e89703ff789c756dc7e2ae870d93ccdcd8021eae6fd4bae1c4f921e7
   requires_dist:
   - pyyaml
   - pandas

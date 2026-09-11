@@ -15,6 +15,7 @@ dependencies = [
 # interpreted as 'features' by pixi
 bacnet =     ["BAC0"]
 simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
+bacnet-test-controller = ["pyfmi", "bacpypes==0.19.0", "rdflib==7.6.0"] # pyfmi on pypi is neglected:
 # last update dec ~2018.
 # no windows wheel.
 # otherwise this is almost a std standard python project.
@@ -28,10 +29,11 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 [tool.pixi.feature.simulation.target.osx-64.dependencies]    # so these are empty to denote not to do anything
 [tool.pixi.feature.simulation.target.osx-arm64.dependencies] # so these are empty to denote not to do anything
 [tool.pixi.feature.simulation.target.linux-aarch64.dependencies] # so these are empty to denote not to do anything
-
+[tool.pixi.feature.bacnet-test-controller.dependencies]
+python = "3.11.15*"
 
 [project.scripts]
-g36conftest = "g36conftest.cli:cli"
+g36conftest = "g36conftest.cli:run_main"
 
 
 [dependency-groups]
@@ -54,6 +56,7 @@ g36conftest = { path = ".", editable = true }
 default = { solve-group = "default" }  # just the 'common' ones
 bacnet =    {  features = ["bacnet",     'test'],   solve-group = "default" }
 simulation = { features = ["simulation", 'test'],   solve-group = "default" }
+bacnet-test-controller = { features = ["bacnet-test-controller", 'test'],   solve-group = "default" }
 
 [tool.pixi.tasks]
 
