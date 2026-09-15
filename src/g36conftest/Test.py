@@ -1,7 +1,9 @@
 import pandas as pd
 import re
 from pathlib import Path
+from datetime import datetime
 import math
+import time
 from .utils.config_loader import load_config
 from .conversion.units import convert
 from .conversion.state import convert as _
@@ -229,7 +231,8 @@ class Test:
                 fp.write(column_names)
             else:
                 fp = open(file, "a")
-            timestamp = str(self.controller.get_current_time())
+            epochtime = self.controller.get_current_time()
+            timestamp = datetime.fromtimestamp(epochtime).strftime('%Y-%m-%d %H:%M:%S')
             values = timestamp+','+','.join([str(value) for value in points.values()])+'\n'
             fp.write(values)
 
@@ -385,17 +388,21 @@ class Test:
         current_time = self.controller.get_current_time()
         last_print = None
         condition_met = False
+        pause_time = None
         # Check if time condition is met to end test step
-        while current_time - st < condition['ClockTime']:
-            seconds_since_start = int(current_time - st)
+        while int(current_time - st) < condition['ClockTime']:
+            # Update seconds_since_start
+            seconds_since_start_exact = current_time - st
+            seconds_since_start = round(seconds_since_start_exact)
             # Compute and set new input values for all ramps and periodics at this step
             for obj in Ramp.instances:
-                if obj.params['ramp_step']:                        
+                if obj.params['ramp_step']:                 
                     obj.compute_value(seconds_since_start)
                     # Convert value to device units and set in device
                     point = self.controller.get_point(obj.variable)
                     value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
                     self.controller.set_single_point(obj.variable, value_to_set)
+                    print('In Top RAMP for {0}: seconds since start is {1}, setting value to {2}'.format(point.name, seconds_since_start, value_to_set))
             for obj in Periodic.instances:
                 if obj.params['periodic_step']:
                     obj.compute_value(seconds_since_start)
@@ -450,23 +457,36 @@ class Test:
                     print()
 
                     return
-
             # If time and variable conditions not met to end test step, wait and advance time
-            wait_duration = sleep_interval if sleep_interval else 10
-            self.controller.wait(wait_duration) 
-            current_time = self.controller.get_current_time()         
+            # Handle differently for simulation and bacnet, where bacnet is assumed to operate in real time.
+            device_type = self.controller.get_type()
+            if device_type == 'simulation':
+                wait_duration = 10
+                self.controller.wait(wait_duration) 
+                current_time = self.controller.get_current_time()  
+            else:
+                print('In test step {0}, {1} ({2}) seconds since start of step.'.format(self._get_step_label(self.current_step), seconds_since_start, seconds_since_start_exact))
+                if pause_time is not None:
+                    current_time = self.controller.get_current_time()
+                    wait_duration = 10 - (current_time - st)%10
+                else:
+                    current_time = self.controller.get_current_time()
+                    wait_duration = 10 - (current_time - st)
+                self.controller.wait(wait_duration) 
+                pause_time = self.controller.get_current_time()
+                current_time = pause_time
 
             # Save point values (every minute for BACnet, every step for simulation)
-            device_type = self.controller.get_type()
             if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
-                if seconds_since_start%60 == 0:
+                if seconds_since_start%5 == 0:
                     if last_print == None or last_print != seconds_since_start/60:
                         last_print = seconds_since_start/60
                         label = self.step_labels[self.current_step-1] if self.current_step-1 < len(self.step_labels) else f"step{self.current_step}"
-                        print("Completed minute %d of %s of the test; Current values="%(int(seconds_since_start/60), self._get_step_label(self.current_step)))
+                        print("Completed minute %d of %s of the test; Current values="%(seconds_since_start/60, self._get_step_label(self.current_step)))
                         self.print_points(to_csv=to_csv, name=name)
+            
         # If time condition met, end test step
         # Update current time
         current_time = self.controller.get_current_time()
@@ -478,7 +498,8 @@ class Test:
                 # Convert value to device units and set in device
                 point = self.controller.get_point(obj.variable)
                 value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
-                self.controller.set_single_point(obj.variable, value_to_set)      
+                self.controller.set_single_point(obj.variable, value_to_set)   
+                print('In Bottom RAMP for {0}: seconds since start is {1}, setting value to {2}'.format(point.name, seconds_since_start, value_to_set))   
         for obj in Periodic.instances:
             if obj.params['periodic_step']:
                 obj.compute_value(seconds_since_start)
@@ -487,7 +508,7 @@ class Test:
                 value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
                 self.controller.set_single_point(obj.variable, value_to_set)
         # Once new values set, let controller update outputs
-        self.controller.wait(duration = 0.0000001)
+        self.controller.wait(duration=0.0000001)
         
         print("test condition finished")
 
@@ -694,8 +715,6 @@ class Test:
                 return value
             else:
                 try:
-                    print('Currently in the first try block')
-                    print(f'The expression is {expression}')
                     float_value = float(expression)
                 except Exception as e:
                     print("WARNING: cannot find variable to check %s"%expression)
@@ -758,26 +777,24 @@ class Ramp(StateOperation):
                 "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
             }
 
-    def compute_value(self, seconds_since_start):        
+    def compute_value(self, seconds_since_start):     
         ramp_start = self.params['ramp_start']
         ramp_end = self.params['ramp_end']
         ramp_rate = self.params['ramp_rate']
         ramp_period = self.params['ramp_period']
         ramp_duration = self.params['duration']
-        if seconds_since_start % ramp_period == 0:
-            # import pdb; pdb.set_trace()
-            current_period = (seconds_since_start / ramp_period)
-            
-            if ramp_start < ramp_end:
-                value_to_set = ramp_start + ramp_rate * current_period * ramp_period             
-                if value_to_set > ramp_end:
-                    value_to_set = ramp_end
-            elif ramp_start > ramp_end:
-                value_to_set = ramp_start - ramp_rate * current_period * ramp_period
-                if value_to_set < ramp_end:
-                    value_to_set = ramp_end
-            if seconds_since_start <= ramp_duration:
-                self.computed_value = value_to_set
+        # import pdb; pdb.set_trace()
+        current_period = (seconds_since_start / ramp_period)
+        
+        if ramp_start < ramp_end:
+            value_to_set = ramp_start + ramp_rate * current_period * ramp_period             
+            if value_to_set > ramp_end:
+                value_to_set = ramp_end
+        elif ramp_start > ramp_end:
+            value_to_set = ramp_start - ramp_rate * current_period * ramp_period
+            if value_to_set < ramp_end:
+                value_to_set = ramp_end
+        self.computed_value = value_to_set
 
 class Periodic(StateOperation):
     OP_TOKEN = "PERIODIC("
@@ -818,11 +835,10 @@ class Periodic(StateOperation):
         periodic_expression = self.params['periodic_expression']
         period = self.params['period']
         #import pdb; pdb.set_trace()
-        if seconds_since_start % period == 0:
-            value_to_set = self.test.evaluate_expression(expression=periodic_expression)
-            var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
-            print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
-            self.computed_value = value_to_set
+        value_to_set = self.test.evaluate_expression(expression=periodic_expression)
+        var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
+        print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
+        self.computed_value = value_to_set
 
 class StateLessOperation:
     OP_TOKEN = None 
