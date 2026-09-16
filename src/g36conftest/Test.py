@@ -45,7 +45,7 @@ class Test:
         # Extract config sections
         self.test_type = self.config['test_type']
         self.device_type = self.config['device_type']
-        self.test_base_dir = self.PROJECT_ROOT / "conformance_tests" / self.test_type 
+        self.test_base_dir = self.PROJECT_ROOT / "conformance_tests" / self.test_type
         self.test_scripts_dir = self.test_base_dir / "test_scripts"
         self.results_dir = self.test_base_dir / "results"
 
