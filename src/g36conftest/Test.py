@@ -583,7 +583,7 @@ class Test:
                         print("For variable %s [or %s], actual value = %f not %s expected value = %f"%(key, var_name, actual_val, operator, expected_val))
                         return False
                 elif "INTERPOLATE(" in expected_val:
-                    op = InterpolateOperation(raw_string=expected_val, test_obj=self)
+                    op = InterpolateOperation(raw_string=expected_val, test_obj=self, variable=key)
                     op.get_parameter_dict()                    
                     op.compute_value()
                     expected_value = op.computed_value                                         
