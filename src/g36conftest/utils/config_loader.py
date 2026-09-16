@@ -49,7 +49,6 @@ def load_config(
         If required fields are missing or invalid
     """
     # Resolve global config path
-
     if global_config_path is None:
         global_config_path = project_root / "config" / "global_config.yaml"
     elif not global_config_path.is_absolute():
