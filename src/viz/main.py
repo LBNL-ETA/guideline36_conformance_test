@@ -306,8 +306,19 @@ def main() -> None:
             default=[label_map[s] for s in default_vars if s in label_map],
             key=f"vars_multiselect__{run.key}",
         )
+        isolate_labels = st.multiselect(
+            "Plot on its own subplot",
+            options=chosen_labels,
+            default=[],
+            key=f"isolate_multiselect__{run.key}",
+            help=(
+                "Selected variables get a dedicated subplot even if they "
+                "share a unit with others. Everything else groups by unit."
+            ),
+        )
     reverse = {v: k for k, v in label_map.items()}
     chosen_vars = [reverse[c] for c in chosen_labels]
+    isolate_vars = [reverse[c] for c in isolate_labels]
 
     time_range: Optional[tuple[float, float]] = None
     filtered_windows = windows
@@ -337,6 +348,8 @@ def main() -> None:
                 variables=chosen_vars,
                 windows=windows,
                 time_range=time_range,
+                pointmap=pointmap,
+                isolate=isolate_vars,
             )
             st.plotly_chart(fig, use_container_width=True)
 

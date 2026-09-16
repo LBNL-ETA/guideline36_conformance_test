@@ -1,9 +1,15 @@
 """Step drill-down: for one step, all outputs on one plot.
 
-For each output at the selected step, draw a horizontal tolerance segment
-``[expected − tol, expected + tol]`` in that output's row, a small tick at
-the expected value, and a large dot at the actual value colored by pass/fail.
-Rows sort with failures on top so the reader's eye lands there first.
+For each output at the selected step, draw a horizontal error-bar glyph
+in that output's row — a whisker from ``expected − tol`` to
+``expected + tol`` capped by vertical dashes (``line-ns``) at each end —
+a small tick at the expected value, and a large dot at the actual value
+colored by pass/fail. Rows sort with failures on top so the reader's eye
+lands there first.
+
+Inequality-form expected values (``>=X``, ``<=X``) are not currently
+rendered here — :func:`viz.utils.deviation.per_step_deviation` returns
+``expected = None`` for them, so those rows show the actual dot alone.
 """
 
 from __future__ import annotations
@@ -22,7 +28,7 @@ from ..utils.deviation import per_step_deviation
 PASS_DOT = "#54A24B"
 FAIL_DOT = "#E45756"
 NEUTRAL_DOT = "#888888"
-BAND = "rgba(76, 120, 168, 0.28)"
+TOL_GLYPH = "rgba(90, 90, 90, 0.9)"
 EXPECTED_MARK = "#4C78A8"
 
 
@@ -64,15 +70,30 @@ def build_step_detail(
         tol = row["tolerance"]
 
         if expected is not None and tol is not None and not (isinstance(tol, float) and math.isnan(tol)) and tol > 0:
-            fig.add_shape(
-                type="rect",
-                x0=expected - tol,
-                x1=expected + tol,
-                y0=y - 0.25,
-                y1=y + 0.25,
-                fillcolor=BAND,
-                line=dict(width=0),
-                layer="below",
+            fig.add_trace(
+                go.Scatter(
+                    x=[expected - tol, expected + tol],
+                    y=[y, y],
+                    mode="lines",
+                    line=dict(color=TOL_GLYPH, width=2),
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[expected - tol, expected + tol],
+                    y=[y, y],
+                    mode="markers",
+                    marker=dict(
+                        symbol="line-ns",
+                        size=14,
+                        color=TOL_GLYPH,
+                        line=dict(color=TOL_GLYPH, width=2),
+                    ),
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
             )
         if expected is not None:
             fig.add_trace(
