@@ -1,102 +1,148 @@
+from typing import Self
+
 
 class State(str):
-    
-    def __bool__(self): return self.bool
-    def __int__(self):  return self.int
-    def __eq__(self, other: 'Self'):
-        return self.lower() == other.lower()
-
-    def normalize(self): return self.upper()
-
-    def __str__(self): return self.normalize()
-    def __repr__(self):return f"{self.__class__.__name__}({self})"
-
-    @classmethod
-    def make(cls, name: str, value: int | bool):
-        _ = cls(name)
-        if isinstance(value, int):
+    def __new__(cls, name: str, value: int | bool = -1) -> Self:
+        _ = super().__new__(cls, name, )
+        if type(value) is int:
             _.int = value
             _.bool = bool(value)
         else:
-            assert(isinstance(value, bool))
+            assert(type(value) is bool)
             _.bool = value
             _.int = int(value)
         return _
-    mk = make
 
-    @classmethod
-    def make_group(cls, states) -> dict:
-        _ = {str(n):n for n in states}
-        # assert uniqueness
-        assert(len(_) == len(frozenset(str(s) for s in _.values())) )
-        return _
+
+    bool: bool
+    def __bool__(self) -> bool: return self.bool
+    int: int
+    def __int__(self) -> int:  return self.int
     
+    def __eq__(self, other: Self) -> bool:
+        s = self.normalize() == other.normalize()
+        i = int(self) == int(other)
+        return s and i
+    normalize = str.upper
+
+    def __str__(self): return self.normalize()
+    def __repr__(self):return f"{self.__class__.__name__}({self}, {int(self)})"
+
+    def __hash__(self) -> int:
+        return hash((str(self), int(self)))
+
+
+# might just use 'bidict' lib for the group
+# but this code has more attached functionality / encapsulation
+class Group(frozenset):
+    def __new__(cls, states: list[State] = []) -> Self:
+        _ = {str(s):s for s in states}
+        # assert uniqueness
+        # assert or Exception?
+        assert(len(_) == len(frozenset(str(s) for s in _.values())) )
+        assert(len(_) == len(frozenset(int(s) for s in _.values())) )
+        _ = super().__new__(cls, states)
+        return _
+
+    from functools import cache
+    @cache
+    def __getitem__(self, key: str | int | bool) -> State:
+        if isinstance(key, str):
+            for s in self:
+                if str(s) == str(State(key)):
+                    return s
+        else:
+            assert(type(key) in {int, bool} )
+            for s in self:
+                if int(s) == key:
+                    return s
+        raise KeyError('State not found')
+
+    s: Groups
+
+
+class Groups(dict[str, Group]):
+    def __new__(cls, groups: dict[str, Group] = {} ) -> Self:
+        # assert uniqueness of names
+        from itertools import chain
+        _ = chain.from_iterable(groups.values())
+        assert(
+            sum(len(g) for g in groups.values())
+            ==
+            len(frozenset(str(s) for s in _)))
+        _ = super().__new__(cls, groups)
+        return _
+
 
 S = State
+G = Group
+groups = G.s = Groups({
 
-_ =  [
-    S.mk('True', True),
-    S.mk('False',  False) ]
-boolean = S.make_group(_)
+'boolean': G([
+    S('True',   True),
+    S('False',  False) ]),
 
-_ =  [
-    S.mk('present', True),
-    S.mk('absent',  False) ]
-occupancy = S.make_group(_)
+'occupancy': G([
+    S('present', True),
+    S('absent',  False) ]),
 
-_ =  [
-    S.mk('enabled', True),
-    S.mk('disabled',  False) ]
-status = S.make_group(_)
+'status': G([
+    S('enabled',    True),
+    S('disabled',   False) ]),
 
-_ =  [
-    S.mk('start', True),
-    S.mk('stop',  False) ]
-commanded_state = S.make_group(_)
+'commanded_state': G([
+    S('start', True),
+    S('stop',  False) ]),
 
-_ = [
-    S.mk('on',      True),
-    S.mk('off',     False),]
-run_state = S.make_group(_)
+'run_state': G([
+    S('on',      True),
+    S('off',     False),]),
 
-_ = [
-    S.mk('closed',  True),
-    S.mk('open',    False),]
-switch = S.make_group(_)
+'switch': G([
+    S('closed',  True),
+    S('open',    False),]),
 
-_ = [
-    S.mk('occupied',    1),
-    S.mk('cooldown',    2),
-    S.mk('setup',       3),
-    S.mk('warmup',      4),
-    S.mk('setback',     5),
-    S.mk('unoccupied',  6),
-    S.mk('none',        7),]
-mode = S.make_group(_)
+'mode': G([
+    S('occupied',    1),
+    S('cooldown',    2),
+    S('setup',       3),
+    S('warmup',      4),
+    S('setback',     5),
+    S('unoccupied',  6),
+    S('none',        7),]),
+})
 
 
-S.s = states = {}
-for ss in (boolean, occupancy, status, commanded_state, run_state, switch, mode ):
-    states.update(ss)
-del ss
-del _
 
-
-from typing import Literal
+from typing import  Callable
 from functools import cache
 @cache # make it a lookup 
-def convert(state: State | str, dtype: Literal['int'] | Literal['bool'] = 'int') -> int | bool:
-    if isinstance(state, str):
-        state = states[str(State(state))]
+def convert(
+        frm: State | str | int | bool,
+        to: type[str] | type[int] | type[bool] = str, # type[str] complains??
+        *,
+        group: str | None = None,
+        groups: Groups | Callable[[], Groups] = groups) \
+            -> int | bool | str:
+    assert(to in {int, bool, str})
+    if isinstance(groups, Callable): groups = groups()
+
+    if isinstance(frm, State):
+        return to(frm)
+    elif isinstance(frm, str):
+        if group:
+            s = groups[group][frm]
+            return to(s)
+        else:
+            for n, g in groups.items():
+                for s in g:
+                    if State(frm).normalize() == (s).normalize():
+                        return to(s)
     else:
-        assert(isinstance(state, State))
-    
-    if dtype == 'int':
-        value = int(state)
-    else:
-        assert(dtype == 'bool')
-        value = bool(state)
-    return value
-
-
-
+        assert(type(frm) in (int, bool))
+        if not group:
+            raise ValueError('need group to convert from a number or bool')
+        g = groups[group]
+        s = g[frm]
+        return to(s)
+    raise ValueError('unhandled conversion')
