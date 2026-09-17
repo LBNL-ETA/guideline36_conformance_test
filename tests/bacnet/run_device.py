@@ -58,7 +58,7 @@ MIT License.
 import time
 import rdflib
 from pathlib import Path
-from src.g36conftest.utils.config_loader import load_config
+from g36conftest.utils.config_loader import load_config
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.consolelogging import ConfigArgumentParser
@@ -338,7 +338,7 @@ def main():
     #
     global nextState, controller
     
-    from src.g36conftest.device.simulation_device import SimulationDevice
+    from g36conftest.device.simulation_device import SimulationDevice
     # Set Project root path relative to where python being called from
     PROJECT_ROOT = Path('.').resolve()
     # Global config and test config must be in 'config/' and 'conformace_tests/<test_type>/config/' respectively
