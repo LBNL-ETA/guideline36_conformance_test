@@ -578,21 +578,26 @@ class Test:
                     op.get_parameter_dict()                    
                     op.compute_value()
                     expected_value = op.computed_value 
+                    if abs(expected_value - actual_val) > error_bound:
+                        var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
+                        print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f"%(key, var_name, actual_val, expected_value, error_bound))
+                        return False
+                    
                 elif "LAST" in expected_val:
                     operator = expected_val.split('LAST')[0]
                     variable = key
                     expected_val = self.step_outputs[self.current_step - 1][variable]
-
                     if self.evaluate_boolean_expression(operator=operator, actual_value=actual_val, expected_value=expected_val, error_bound=error_bound):
                         continue
+
                     else:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print("For variable %s [or %s], actual value = %f not %s expected value = %f"%(key, var_name, actual_val, operator, expected_val))
                         return False
+
                 elif expected_val.startswith("="):
                     expression = expected_val[1:]
                     expected_value = self.evaluate_expression(expression=expression)
-
                     if abs(expected_value - actual_val) > error_bound:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f" % (
