@@ -514,6 +514,7 @@ class Test:
         
         '''
         # TODO: Handle initialization step more explicitly in the test loop
+
         if actual_value is None:  # For simulation device, all varables are None before first wait() call
             check = False
         if operator == ">":
@@ -571,6 +572,12 @@ class Test:
             elif type(expected_val) == str:
                 if "ANY" in expected_val:
                     continue
+                
+                elif "INTERPOLATE(" in expected_val:
+                    op = InterpolateOperation(raw_string=expected_val, test_obj=self, variable=key)
+                    op.get_parameter_dict()                    
+                    op.compute_value()
+                    expected_value = op.computed_value 
                 elif "LAST" in expected_val:
                     operator = expected_val.split('LAST')[0]
                     variable = key
@@ -582,11 +589,6 @@ class Test:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print("For variable %s [or %s], actual value = %f not %s expected value = %f"%(key, var_name, actual_val, operator, expected_val))
                         return False
-                elif "INTERPOLATE(" in expected_val:
-                    op = InterpolateOperation(raw_string=expected_val, test_obj=self, variable=key)
-                    op.get_parameter_dict()                    
-                    op.compute_value()
-                    expected_value = op.computed_value                                         
                 elif expected_val.startswith("="):
                     expression = expected_val[1:]
                     expected_value = self.evaluate_expression(expression=expression)
