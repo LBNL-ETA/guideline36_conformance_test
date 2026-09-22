@@ -528,7 +528,7 @@ class Test:
             else:
                 check = False
         elif operator == "<":
-            if actual_value > expected_value:
+            if actual_value < expected_value:
                 check = True
             else:
                 check = False
