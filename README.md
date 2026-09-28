@@ -103,8 +103,7 @@ Results will be saved to `conformance_tests/{test_type}/results/`
 ## Visualize a Run
 
 An interactive Streamlit + Plotly UI plots per-run trajectories against
-expected values with tolerance bands, highlights step failures, and offers a
-deviation heatmap and per-step drill-down.
+expected values with tolerance bands and highlights step failures.
 
 - **Standalone** — open the UI for any past run without running a test:
 

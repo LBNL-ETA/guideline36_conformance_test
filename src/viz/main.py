@@ -26,9 +26,7 @@ from viz.data.discover import (
 from viz.data.pointmap import load_pointmap
 from viz.data.run import RunHandle
 from viz.data.script import TestScript, load_test_script
-from viz.plots.heatmap import build_heatmap
 from viz.plots.passfail import build_pass_fail_ribbon
-from viz.plots.stepdetail import build_step_detail
 from viz.plots.timeseries import build_timeseries
 from viz.utils.deviation import per_step_deviation
 
@@ -264,11 +262,6 @@ def main() -> None:
 
     with st.sidebar:
         st.markdown("### View")
-        plot_type = st.radio(
-            "Plot type",
-            options=["Time series", "Deviation heatmap", "Step drill-down"],
-            index=0,
-        )
         io_choice = st.radio(
             "Signals",
             options=["Both inputs and outputs", "Inputs only", "Outputs only"],
@@ -294,9 +287,7 @@ def main() -> None:
         for s in available
     }
 
-    default_vars: list[str] = []
-    if plot_type == "Time series":
-        default_vars = output_names[:3] if output_names else input_names[:3]
+    default_vars = output_names[:3] if output_names else input_names[:3]
 
     with st.sidebar:
         st.markdown("### Variables")
@@ -338,39 +329,18 @@ def main() -> None:
         config={"displayModeBar": False},
     )
 
-    if plot_type == "Time series":
-        if not chosen_vars:
-            st.info("Pick one or more variables from the sidebar to plot.")
-        else:
-            fig = build_timeseries(
-                run,
-                script,
-                variables=chosen_vars,
-                windows=windows,
-                time_range=time_range,
-                pointmap=pointmap,
-                isolate=isolate_vars,
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-    elif plot_type == "Deviation heatmap":
-        heat_outputs = [v for v in chosen_vars if v in output_names] or output_names
-        fig = build_heatmap(run, script, outputs=heat_outputs)
-        st.plotly_chart(fig, use_container_width=True)
-
-    elif plot_type == "Step drill-down":
-        step_options = [w.label for w in windows]
-        if filter_mode == "step":
-            default_step_idx = step_options.index(filter_choice[1])
-        else:
-            first_fail = next((w.label for w in windows if w.passed is False), None)
-            default_step_idx = (
-                step_options.index(first_fail) if first_fail in step_options
-                else min(1, len(step_options) - 1)
-            )
-        step_choice = st.selectbox("Step", options=step_options, index=default_step_idx)
-        detail_outputs = [v for v in chosen_vars if v in output_names] or output_names
-        fig = build_step_detail(run, script, step_label=step_choice, outputs=detail_outputs)
+    if not chosen_vars:
+        st.info("Pick one or more variables from the sidebar to plot.")
+    else:
+        fig = build_timeseries(
+            run,
+            script,
+            variables=chosen_vars,
+            windows=windows,
+            time_range=time_range,
+            pointmap=pointmap,
+            isolate=isolate_vars,
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Per-step deviation table", expanded=False):
