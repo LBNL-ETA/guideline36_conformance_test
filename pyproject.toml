@@ -1,3 +1,4 @@
+
 [project]
 name = "g36conftest"
 version = "0.0.1"
@@ -29,15 +30,22 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 [tool.pixi.feature.simulation.target.osx-arm64.dependencies] # so these are empty to denote not to do anything
 [tool.pixi.feature.simulation.target.linux-aarch64.dependencies] # so these are empty to denote not to do anything
 
+[tool.pixi.feature.cicd.dependencies]
+act = '*'
 
 [project.scripts]
 g36conftest = "g36conftest.cli:cli"
 
 
-[dependency-groups]
-test = ["pytest", 'pytest-regressions']
+[dependency-groups] # these are taken as pypi
+test = ["pytest", 'pytest-regressions',]
 #'dev' specifically can be for debugging, formatting, ...
-dev = [ {include-group = "test"}, ] # 
+dev = [ {include-group = "test"}, 
+#  could have code linting
+] # 
+cicd = [
+#"act",# local github actions,
+{include-group="dev"}  ] 
 
 
 [tool.pixi.workspace]
@@ -52,8 +60,9 @@ g36conftest = { path = ".", editable = true }
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
-bacnet =    {  features = ["bacnet",     'test'],   solve-group = "default" }
-simulation = { features = ["simulation", 'test'],   solve-group = "default" }
+bacnet =    {   features = ["bacnet",     ],                    solve-group = "default" }
+simulation = {  features = ["simulation", ],                    solve-group = "default" }
+dev = {         features = ["simulation", "bacnet", "cicd", ],  solve-group = "default" }
 
 [tool.pixi.tasks]
 
