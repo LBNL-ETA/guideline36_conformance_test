@@ -205,9 +205,10 @@ class Test:
             # If acceptable units assigned, convert from device to test script
             try:
                 value = convert(value, p.unit_in_device, p.unit_in_test).magnitude
-            # Otherwise, likely a "state" rather than "unit", just print as is for now # TODO
+            # Otherwise, likely a "state" rather than "physical unit"
             except:
-                pass
+                value = int(value)
+                value = _convert_state(value, group=p.unit_in_test)
             points[var_name_in_test] = value
         return points
 
@@ -369,12 +370,20 @@ class Test:
             var_name_in_test = self.point_properties.loc[key].name_in_test
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
             # Convert value to device units and set in device
-            # Handle string/boolean conversions # TODO this is hardcoded and needs to be made device-flexible
+            point = self.controller.get_point(key)
             if isinstance(value_to_set, str):
-                value_to_set = _convert_state(value_to_set, int)
+                # If a state, use state conversion
+                if point.unit_in_device == 'int':
+                    to_type = int
+                elif point.unit_in_device == 'bool':
+                    to_type = bool
+                elif point.unit_in_device == 'str':
+                    to_type = str
+                else:
+                    raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
+                value_to_set = _convert_state(frm=value_to_set, to=to_type, group=point.unit_in_test)
             else:
-            # Handle all other conversions
-                point = self.controller.get_point(key)
+                # Otherwise use physical unit conversion
                 value_to_set = convert(value_to_set, point.unit_in_test, point.unit_in_device).magnitude
             self.controller.set_single_point(key, value_to_set)
 
