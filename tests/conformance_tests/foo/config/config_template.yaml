@@ -78,3 +78,17 @@ test:
   input_points_header: "Inputs"
   conditions_header: "Conditions for Evaluation of Test Step"
   output_points_header: "Expected Outputs"
+
+  # ---------------------------------------------------------------------------
+  # Persistent-testing options (Issue #60)
+  # ---------------------------------------------------------------------------
+  # start_block: label of the test block to start with (e.g. A, B, AA, BB).
+  # Must match a block label in the test script. If unset (default), the run
+  # starts from the first step of the script.
+  start_block: A
+  #
+  # single_block: if true, run only the block named by start_block and stop
+  # when it ends. If false (default), continue to the end of the script; if a
+  # step fails, the remainder of its block is skipped and testing continues
+  # with the next block ("persistent testing").
+  single_block: false
