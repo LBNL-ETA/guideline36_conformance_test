@@ -207,8 +207,14 @@ class Test:
                 value = convert(value, p.unit_in_device, p.unit_in_test).magnitude
             # Otherwise, likely a "state" rather than "physical unit"
             except:
-                value = int(value)
-                value = _convert_state(value, group=p.unit_in_test)
+                # If a state, use state conversion
+                if p.unit_in_device == 'int':
+                    value = int(value)
+                elif p.unit_in_device == 'bool':
+                    value = bool(value)
+                else:
+                    raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
+                value = _convert_state(frm=value, to=str, group=p.unit_in_test)
             points[var_name_in_test] = value
         return points
 
