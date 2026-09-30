@@ -189,6 +189,9 @@ class BacnetDevice(BaseDevice):
             
             self.points[bacnet_name] = point
 
+        # Record time of initialization
+        self.start_time = time.time()
+
     def get_point_properties(self):
         """
         Get point properties as DataFrame for test script compatibility.
@@ -339,13 +342,16 @@ class BacnetDevice(BaseDevice):
     
     def get_current_time(self):
         """
-        Get current wall clock time.
+        Get current time of device.
         
         Returns
         -------
-        Current time in seconds since epoch
+        Current time in seconds since device initialization in test.
         """
-        return time.time()
+
+        current_time = time.time() - self.start_time
+
+        return current_time
 
     def read_all_points(self):
         """

@@ -231,8 +231,7 @@ class Test:
                 fp.write(column_names)
             else:
                 fp = open(file, "a")
-            epochtime = self.controller.get_current_time()
-            timestamp = datetime.fromtimestamp(epochtime).strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = str(self.controller.get_current_time())
             values = timestamp+','+','.join([str(value) for value in points.values()])+'\n'
             fp.write(values)
 
