@@ -6,26 +6,125 @@ To achieve this goal, a performance validation method is needed to provide indep
 
 This software has been developed to conduct standardized, repeatable and manufacturer independent tests to validate that a BAS controller has been programmed in conformance with Guideline 36. Manufacturers would provide the controller (or the control program) and the software would run a suite of tests by setting a set of inputs to the controller and verifying the output signals from the controller matches the expected output as set by Guideline 36.
 
-## Installation Instructions
+## Installation
 
-### Set up environment
-Install python3
+You can develop in a [container](./README.md#using-docker-compose) or use [pixi](./README.md#using-pixi).
 
-pip install -r requirements.txt
+### Using Docker Compose
 
-Save test script to `files/`
+Install Docker. Then, the following.
 
-### Configuration
-Copy `src/config_template.yaml` to `src/config.yaml` and fill in the necessary configuration information.
+Build the simulation image (if first time) and run container in detached mode:
 
-## Start the test
-Reset the controller: `python3 src/Test.py --reset `
+```
+$ docker compose up dev -d
+```
+Attach to the container interactively in the right working directory:
 
-Run the test: `python3 src/Test.py`
+```
+$ docker compose exec -w /work dev denv simulation
+```
+Run a test(s) as described in the section "Run a Test."
+
+Exit the container: ctrl+d
+
+Stop and remove the container:
+
+```
+$ docker compose down
+```
+
+### Using Pixi
+
+[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation` or 'bacnet' environment
+`pixi shell -e bacnet` depending on the device interface desired.  Use `exit` to exit.
+
+On Windows, you have to manually install [OpenModelica](https://openmodelica.org/).
+The compiler executable, `omc`, will be available on [pixi windows simulation environment activation](./pyproject.toml).
+
+
+## Getting Started for a CDL Simulation Device
+
+Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
+
+
+### Run a Test
+
+1. Set up global configuration:
+
+    - Create new directory `config`
+    - Copy `tests/config/global_config_template.yaml` to `config/global_config.yaml` and fill in:
+        - `test_type`: which conformance test to run (e.g., `foo`)
+        - `device_type`: `simulation` or `bacnet`
+        - `test_runner` options: `save_csv`, `print_output`, `reset_points`
+
+2. Configure the specific test:
+
+    - Create new directory `conformance_tests` 
+    - Copy `tests/conformance_tests/{any_test_type}/config/config_template.yaml` to `conformance_tests/{test_type}/config/config.yaml` in the same directory and fill in:
+        - Device settings for both simulation and bacnet
+        - Test script filename
+        - Point mapping file path
+
+3. Prepare test files:
+
+    - Save test script (Excel file) to `conformance_tests/{test_type}/test_scripts/`
+    - Save point mapping file (CSV) to `conformance_tests/{test_type}/config/`
+    - For simulation: place Modelica (.mo) or FMU files in `conformance_tests/{test_type}/simulation_files/`
+
+4. Run the test as configured with ``$ g36conftest``.  Additional options as:
+
+    ```
+    ❯ g36conftest --help
+    usage: python -m g36conftest.cli [-h] [--global-config GLOBAL_CONFIG]
+                                [--test-config TEST_CONFIG] [--reset]
+                                [--output] [--csv] [--name NAME]
+
+    Run ASHRAE Guideline 36 conformance tests
+
+    options:
+    -h, --help            show this help message and exit
+    --global-config GLOBAL_CONFIG
+                            path to global config file (default:
+                            config/global_config.yaml)
+    --test-config TEST_CONFIG
+                            path to test-specific config file (default:
+                            determined from test_type)
+    --reset               reset point values to first stage
+                            (overrides config)
+    --output              print point values without running test
+                            (overrides config)
+    --csv                 save outputs to csv (overrides config)
+    --name NAME           test run name (overrides config)
+    ```
+
+Results will be saved to `conformance_tests/{test_type}/results/`
+
+## Visualize a Run
+
+An interactive Streamlit + Plotly UI plots per-run trajectories against
+expected values with tolerance bands and highlights step failures.
+
+- **Standalone** — open the UI for any past run without running a test:
+
+    ```
+    g36conftest-viz
+    ```
+
+    Then open `http://localhost:8501` on the host (the container exposes 8501
+    via `compose.yaml`).
+
+- **Auto-launch after a test** — set `viz.enabled: true` under the `viz:`
+  section in `config/global_config.yaml` (see the template) and run
+  `g36conftest --csv`. The UI launches automatically once the test finishes
+  and preselects the just-completed run.
+
+The viz reads only the runner's CSV outputs and the Excel test script — the
+runner and its device layer are untouched.
 
 ## Copyright Notice
 
-Guideline 36 Conformance Test Copyright (c) 2019 to 2025, The Regents of the University of California through Lawrence Berkeley National Laboratory, and Battelle Memorial Institute through Pacific Northwest National Laboratory (both subject to receipt of any required approvals from the U.S. Dept. of Energy).
+Guideline 36 Conformance Test Copyright (c) 2019 to 2026, The Regents of the University of California through Lawrence Berkeley National Laboratory, and Battelle Memorial Institute through Pacific Northwest National Laboratory (both subject to receipt of any required approvals from the U.S. Dept. of Energy).
 All rights reserved.
 
 If you have questions about your rights to use or distribute this software,

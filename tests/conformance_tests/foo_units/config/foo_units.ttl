@@ -1,0 +1,329 @@
+@prefix bldg: <urn:example#> .
+@prefix brick: <https://brickschema.org/schema/Brick#> .
+@prefix bacnet: <http://data.ashrae.org/bacnet/2020#> .
+@prefix unit: <http://qudt.org/vocab/unit/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ref: <https://brickschema.org/schema/Brick/ref#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:example#> a owl:Ontology ;
+	owl:imports <https://brickschema.org/schema/1.2/Brick#> .
+
+bldg:boptest-proxy-device a bacnet:BACnetDevice ;
+	bacnet:device-instance 599 .
+
+bldg:advance a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,1" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "advance" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:time a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-value,2" ;
+		bacnet:object-type "analog-value" ;
+		bacnet:object-name "time" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u1 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,3" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u1" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u2 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,4" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u2" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u3 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,5" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u3" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u4 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,6" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u4" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u5 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,7" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u5" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u6 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,8" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u6" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u7 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,9" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u7" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u8 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,10" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u8" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u9 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,11" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u9" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u10 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,12" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u10" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u11 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,13" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u11" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u12 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,14" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u12" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u13 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,15" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u13" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u14 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,16" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u14" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u15 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,17" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u15" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u16 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,18" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u16" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u17 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,19" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u17" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u18 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,20" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u18" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u19 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,21" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u19" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_u20 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-output,22" ;
+		bacnet:object-type "analog-output" ;
+		bacnet:object-name "cdl_u20" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y1 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,23" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y1" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y2 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,24" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y2" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y3 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,25" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y3" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y4 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,26" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y4" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y5 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,27" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y5" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y6 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,28" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y6" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y7 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,29" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y7" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y8 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,30" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y8" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y9 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,31" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y9" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y10 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,32" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y10" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y11 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,33" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y11" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y12 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,34" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y12" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
+bldg:cdl_y13 a brick:Point ;
+	ref:hasExternalReference [
+		bacnet:object-identifier "analog-input,35" ;
+		bacnet:object-type "analog-input" ;
+		bacnet:object-name "cdl_y13" ;
+		bacnet:status-flags 0 ;
+		bacnet:objectOf bldg:copper-proxy-device
+	] .
+
