@@ -45,7 +45,7 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
 
 ## Getting Started for a CDL Simulation Device
 
-    - Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
+Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
 
 
 ### Run a Test
@@ -72,7 +72,7 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
     - Save point mapping file (CSV) to `conformance_tests/{test_type}/config/`
     - For simulation: place Modelica (.mo) or FMU files in `conformance_tests/{test_type}/simulation_files/`
 
-4. Run the test:
+4. Run the test as configured with ``$ g36conftest``.  Additional options as:
 
     ```
     ❯ g36conftest --help
