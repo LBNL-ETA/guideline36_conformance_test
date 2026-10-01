@@ -8,7 +8,8 @@ from typing import Dict, Any, Optional
 def load_config(
     project_root: Path,
     global_config_path: Optional[Path] = None,
-    test_config_path: Optional[Path] = None
+    test_config_path: Optional[Path] = None,
+    force_device = None
 ) -> Dict[str, Any]:
     """
     Load and merge global and test-specific configurations.
@@ -27,6 +28,10 @@ def load_config(
         Path to test-specific config file. Can be absolute or relative to project_root.
         If None, uses test_type from global config to determine path:
         conformance_tests/{test_type}/config/config.yaml
+    force_device : str, optional
+        Force loading of a specific device type by defining the device_type string here.
+        If None, takes from global_config.
+        Default is None.
         
     Returns
     -------
@@ -97,7 +102,10 @@ def load_config(
         raise ValueError(f"Test config must have 'test' section")
     
     # Extract device config for selected device type
-    device_config = test_config['device'][device_type].copy()
+    if force_device is None:
+        device_config = test_config['device'][device_type].copy()
+    else:
+        device_config = test_config['device'][force_device].copy()
     device_config['type'] = device_type  # Add type field for backward compatibility
     
     # Build merged config

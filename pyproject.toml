@@ -19,6 +19,10 @@ simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
 # no windows wheel.
 # otherwise this is almost a std standard python project.
 viz = ["streamlit>=1.35", "plotly>=5.20", "pyyaml"]
+bacnet-test-controller = ["pyfmi", "bacpypes==0.19.0", "rdflib==7.6.0"] # pyfmi on pypi is neglected:
+[tool.pixi.feature.bacnet.target.win-64.activation]
+env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
+
 [tool.pixi.feature.simulation.dependencies]
 pyfmi = ">=2.21.0,<3"  # get pyfmi from conda (overrides above)
 [tool.pixi.feature.simulation.target.linux-64.dependencies]
@@ -29,6 +33,11 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 [tool.pixi.feature.simulation.target.osx-64.dependencies]    # so these are empty to denote not to do anything
 [tool.pixi.feature.simulation.target.osx-arm64.dependencies] # so these are empty to denote not to do anything
 [tool.pixi.feature.simulation.target.linux-aarch64.dependencies] # so these are empty to denote not to do anything
+
+[tool.pixi.feature.bacnet-test-controller.dependencies]
+python = "3.11.15*"
+[tool.pixi.feature.bacnet-test-controller.target.win-64.activation]
+env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 
 
 [project.scripts]
@@ -67,6 +76,6 @@ default = { solve-group = "default" }  # just the 'common' ones
 bacnet =    {  features = ["bacnet",     'test', 'viz'],   solve-group = "default" }
 simulation = { features = ["simulation", 'test', 'viz'],   solve-group = "default" }
 viz =        { features = ["viz"],                          solve-group = "default" }
+bacnet-test-controller = { features = ["bacnet-test-controller", 'test'],   solve-group = "default" }
 
 [tool.pixi.tasks]
-

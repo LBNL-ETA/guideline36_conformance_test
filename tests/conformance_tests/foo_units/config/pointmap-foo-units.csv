@@ -1,38 +1,38 @@
-Description,Dummy Test,,,,,,,,
-Version,v1,,,,,,,,
-Date,"January 31, 2026",,,,,,,,
-Long Name,Variable Name,Type,Unit,CDL Block,CDL Name,CDL Causality,CDL Type,CDL Unit,CDL Comments
-Temperature,ts_u1,Input (write),F,.,cdl_u1,Input,Real,K,
-Air Flow,ts_u2,Input (write),cfm,.,cdl_u2,Input,Real,m3/s,
-Concentration,ts_u3,Input (write),ppm,.,cdl_u3,Input,Real,ppm,
-Percent,ts_u4,Input (write),percent,.,cdl_u4,Input,Real,1,
-Water Flow,ts_u5,Input (write),gpm,.,cdl_u5,Input,Real,m3/s,
-Temperature,ts_u6,Input (write),F,.,cdl_u6,Input,Real,K,
-Air Flow,ts_u7,Input (write),cfm,.,cdl_u7,Input,Real,m3/s,
-Concentration,ts_u8,Input (write),ppm,.,cdl_u8,Input,Real,ppm,
-Percent,ts_u9,Input (write),percent,.,cdl_u9,Input,Real,1,
-Water Flow,ts_u10,Input (write),gpm,.,cdl_u10,Input,Real,m3/s,
-Temperature Difference,ts_u11,Input (write),dF,.,cdl_u11,Input,Real,dC,
-Temperature,ts_u12,Input (write),F,.,cdl_u12,Input,Real,K,
-Air Flow,ts_u13,Input (write),cfm,.,cdl_u13,Input,Real,m3/s,
-Boolean,ts_u14,Input (write),,.,cdl_u14,Input,Boolean,,
-Boolean,ts_u15,Input (write),,.,cdl_u15,Input,Boolean,,
-Boolean,ts_u16,Input (write),,.,cdl_u16,Input,Boolean,,
-Multistate,ts_u17,Input (write),,.,cdl_u17,Input,Integer,,
-Multistate,ts_u18,Input (write),,.,cdl_u18,Input,Integer,,
-Multistate,ts_u19,Input (write),,.,cdl_u19,Input,Integer,,
-Multistate,ts_u20,Input (write),,.,cdl_u20,Input,Integer,,
-,,,,,,,,,
-Temperature,ts_y1,Output (read),F,.,cdl_y1,Output,Real,K,
-Air Flow,ts_y2,Output (read),cfm,.,cdl_y2,Output,Real,m3/s,
-Concentration,ts_y3,Output (read),ppm,.,cdl_y3,Output,Real,ppm,
-Percent,ts_y4,Output (read),percent,.,cdl_y4,Output,Real,1,
-Water Flow,ts_y5,Output (read),gpm,.,cdl_y5,Output,Real,m3/s,
-Temperature,ts_y6,Output (read),F,.,cdl_y6,Output,Real,K,
-Air Flow,ts_y7,Output (read),cfm,.,cdl_y7,Output,Real,m3/s,
-Concentration,ts_y8,Output (read),ppm,.,cdl_y8,Output,Real,ppm,
-Percent,ts_y9,Output (read),percent,.,cdl_y9,Output,Real,1,
-Water Flow,ts_y10,Output (read),gpm,.,cdl_y10,Output,Real,m3/s,
-Temperature Difference,ts_y11,Output (read),dF,.,cdl_y11,Output,Real,dC,
-Temperature,ts_y12,Output (read),F,.,cdl_y12,Output,Real,K,
-Air Flow,ts_y13,Output (read),cfm,.,cdl_y13,Output,Real,m3/s,
+Description,Dummy Test,,,,,,,,,,,,,,
+Version,v1,,,,,,,,,,,,,,
+Date,"January 31, 2026",,,,,,,,,,,,,,
+Long Name,Variable Name,Type,Unit,CDL Block,CDL Name,CDL Causality,CDL Type,CDL Unit,CDL Comments,BACnet Name,BACnet Unit,BACnet Address,BACnet Object Type,BACnet Object ID,BACnet Description
+Temperature,ts_u1,Input (write),F,.,cdl_u1,Input,Real,K,,cdl_u1,K,127.0.0.1:5000,analogOutput,3,Placeholder
+Air Flow,ts_u2,Input (write),cfm,.,cdl_u2,Input,Real,m3/s,,cdl_u2,m3/s,127.0.0.1:5000,analogOutput,4,Placeholder
+Concentration,ts_u3,Input (write),ppm,.,cdl_u3,Input,Real,ppm,,cdl_u3,ppm,127.0.0.1:5000,analogOutput,5,Placeholder
+Percent,ts_u4,Input (write),percent,.,cdl_u4,Input,Real,1,,cdl_u4,1,127.0.0.1:5000,analogOutput,6,Placeholder
+Water Flow,ts_u5,Input (write),gpm,.,cdl_u5,Input,Real,m3/s,,cdl_u5,m3/s,127.0.0.1:5000,analogOutput,7,Placeholder
+Temperature,ts_u6,Input (write),F,.,cdl_u6,Input,Real,K,,cdl_u6,K,127.0.0.1:5000,analogOutput,8,Placeholder
+Air Flow,ts_u7,Input (write),cfm,.,cdl_u7,Input,Real,m3/s,,cdl_u7,m3/s,127.0.0.1:5000,analogOutput,9,Placeholder
+Concentration,ts_u8,Input (write),ppm,.,cdl_u8,Input,Real,ppm,,cdl_u8,ppm,127.0.0.1:5000,analogOutput,10,Placeholder
+Percent,ts_u9,Input (write),percent,.,cdl_u9,Input,Real,1,,cdl_u9,1,127.0.0.1:5000,analogOutput,11,Placeholder
+Water Flow,ts_u10,Input (write),gpm,.,cdl_u10,Input,Real,m3/s,,cdl_u10,m3/s,127.0.0.1:5000,analogOutput,12,Placeholder
+Temperature Difference,ts_u11,Input (write),dF,.,cdl_u11,Input,Real,dC,,cdl_u11,dC,127.0.0.1:5000,analogOutput,13,Placeholder
+Temperature,ts_u12,Input (write),F,.,cdl_u12,Input,Real,K,,cdl_u12,K,127.0.0.1:5000,analogOutput,14,Placeholder
+Air Flow,ts_u13,Input (write),cfm,.,cdl_u13,Input,Real,m3/s,,cdl_u13,m3/s,127.0.0.1:5000,analogOutput,15,Placeholder
+Boolean,ts_u14,Input (write),,.,cdl_u14,Input,Boolean,,,cdl_u14,,127.0.0.1:5000,analogOutput,16,Placeholder
+Boolean,ts_u15,Input (write),,.,cdl_u15,Input,Boolean,,,cdl_u15,,127.0.0.1:5000,analogOutput,17,Placeholder
+Boolean,ts_u16,Input (write),,.,cdl_u16,Input,Boolean,,,cdl_u16,,127.0.0.1:5000,analogOutput,18,Placeholder
+Multistate,ts_u17,Input (write),,.,cdl_u17,Input,Integer,,,cdl_u17,,127.0.0.1:5000,analogOutput,19,Placeholder
+Multistate,ts_u18,Input (write),,.,cdl_u18,Input,Integer,,,cdl_u18,,127.0.0.1:5000,analogOutput,20,Placeholder
+Multistate,ts_u19,Input (write),,.,cdl_u19,Input,Integer,,,cdl_u19,,127.0.0.1:5000,analogOutput,21,Placeholder
+Multistate,ts_u20,Input (write),,.,cdl_u20,Input,Integer,,,cdl_u20,,127.0.0.1:5000,analogOutput,22,Placeholder
+,,,,,,,,,,,,,,,
+Temperature,ts_y1,Output (read),F,.,cdl_y1,Output,Real,K,,cdl_y1,K,127.0.0.1:5000,analogInput,23,Placeholder
+Air Flow,ts_y2,Output (read),cfm,.,cdl_y2,Output,Real,m3/s,,cdl_y2,m3/s,127.0.0.1:5000,analogInput,24,Placeholder
+Concentration,ts_y3,Output (read),ppm,.,cdl_y3,Output,Real,ppm,,cdl_y3,ppm,127.0.0.1:5000,analogInput,25,Placeholder
+Percent,ts_y4,Output (read),percent,.,cdl_y4,Output,Real,1,,cdl_y4,1,127.0.0.1:5000,analogInput,26,Placeholder
+Water Flow,ts_y5,Output (read),gpm,.,cdl_y5,Output,Real,m3/s,,cdl_y5,m3/s,127.0.0.1:5000,analogInput,27,Placeholder
+Temperature,ts_y6,Output (read),F,.,cdl_y6,Output,Real,K,,cdl_y6,K,127.0.0.1:5000,analogInput,28,Placeholder
+Air Flow,ts_y7,Output (read),cfm,.,cdl_y7,Output,Real,m3/s,,cdl_y7,m3/s,127.0.0.1:5000,analogInput,29,Placeholder
+Concentration,ts_y8,Output (read),ppm,.,cdl_y8,Output,Real,ppm,,cdl_y8,ppm,127.0.0.1:5000,analogInput,30,Placeholder
+Percent,ts_y9,Output (read),percent,.,cdl_y9,Output,Real,1,,cdl_y9,1,127.0.0.1:5000,analogInput,31,Placeholder
+Water Flow,ts_y10,Output (read),gpm,.,cdl_y10,Output,Real,m3/s,,cdl_y10,m3/s,127.0.0.1:5000,analogInput,32,Placeholder
+Temperature Difference,ts_y11,Output (read),dF,.,cdl_y11,Output,Real,dC,,cdl_y11,dC,127.0.0.1:5000,analogInput,33,Placeholder
+Temperature,ts_y12,Output (read),F,.,cdl_y12,Output,Real,K,,cdl_y12,K,127.0.0.1:5000,analogInput,34,Placeholder
+Air Flow,ts_y13,Output (read),cfm,.,cdl_y13,Output,Real,m3/s,,cdl_y13,m3/s,127.0.0.1:5000,analogInput,35,Placeholder
