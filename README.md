@@ -124,7 +124,7 @@ runner and its device layer are untouched.
 
 ## Copyright Notice
 
-Guideline 36 Conformance Test Copyright (c) 2019 to 2025, The Regents of the University of California through Lawrence Berkeley National Laboratory, and Battelle Memorial Institute through Pacific Northwest National Laboratory (both subject to receipt of any required approvals from the U.S. Dept. of Energy).
+Guideline 36 Conformance Test Copyright (c) 2019 to 2026, The Regents of the University of California through Lawrence Berkeley National Laboratory, and Battelle Memorial Institute through Pacific Northwest National Laboratory (both subject to receipt of any required approvals from the U.S. Dept. of Energy).
 All rights reserved.
 
 If you have questions about your rights to use or distribute this software,
