@@ -49,6 +49,24 @@ test_runner:
   reset_points: false
 
 # -----------------------------------------------------------------------------
+# Visualization (Optional)
+# -----------------------------------------------------------------------------
+# Interactive Streamlit + Plotly UI for browsing run results.
+# You can always browse past runs standalone with `g36conftest-viz`.
+viz:
+  # If true, automatically launch the viz UI after a test completes.
+  # The auto-launch only fires when the run also saved CSV (`--csv` or
+  # `test_runner.save_csv: true`) — there is nothing to view otherwise.
+  # Options: true, false
+  enabled: false
+
+  # Port streamlit binds to. Must match the compose.yaml port mapping.
+  port: 8501
+
+  # Bind address. Use 0.0.0.0 so the port is reachable from the Docker host.
+  address: "0.0.0.0"
+
+# -----------------------------------------------------------------------------
 # Logging Settings (Optional)
 # -----------------------------------------------------------------------------
 logging:
