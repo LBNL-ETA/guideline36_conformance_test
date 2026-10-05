@@ -1,0 +1,11 @@
+device_type: simulation
+logging:
+    level: INFO
+    log_dir: results
+    save_to_file: true
+test_runner:
+    name: null
+    print_output: false
+    reset_points: false
+    save_csv: false
+test_type: foo_units

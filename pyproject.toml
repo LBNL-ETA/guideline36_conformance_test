@@ -65,4 +65,5 @@ simulation = {  features = ["simulation", ],                    solve-group = "d
 dev = {         features = ["simulation", "bacnet", "cicd", ],  solve-group = "default" }
 
 [tool.pixi.tasks]
+test = { cmd = "pytest", cwd = "tests", default-environment="dev" }
 

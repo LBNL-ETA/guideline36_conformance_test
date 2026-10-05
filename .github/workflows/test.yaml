@@ -15,6 +15,6 @@ jobs:
             #auth-host: prefix.dev why this stuff in readme?
             #auth-token: ${{ secrets.PREFIX_DEV_TOKEN }}
         
-            #- run: pixi run test make a task
-        - run: echo "run pytest"
+        - name: run pytest
+          run: pixi run test
 
