@@ -215,7 +215,7 @@ class Test:
                 elif p.unit_in_device == 'bool':
                     value = bool(value)
                 else:
-                    raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
+                    raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(p.unit_in_device, p.name))
                 value = _convert_state(frm=value, to=str, group=p.unit_in_test)
             points[var_name_in_test] = value
         return points
