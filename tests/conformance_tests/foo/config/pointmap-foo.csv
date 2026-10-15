@@ -23,11 +23,11 @@ R,ts_u18,analog-input,dimensionless,,.,cdl_u18,Input,Real,dimensionless,,cdl_u18
 S,ts_u19,analog-input,dimensionless,,.,cdl_u19,Input,Real,dimensionless,,cdl_u19,dimensionless,127.0.0.1:5000,analogOutput,21,Placeholder
 T,ts_u20,analog-input,dimensionless,,.,cdl_u20,Input,Real,dimensionless,,cdl_u20,dimensionless,127.0.0.1:5000,analogOutput,22,Placeholder
 U,ts_u21,analog-input,dimensionless,,.,cdl_u21,Input,Real,dimensionless,,cdl_u21,dimensionless,127.0.0.1:5000,analogOutput,23,Placeholder
-V,ts_u22,binary-input,run_state,,.,cdl_u22,Input,Boolean,bool,,cdl_u22,,127.0.0.1:5000,analogOutput,24,Placeholder
+V,ts_u22,binary-input,run_state,,.,cdl_u22,Input,Boolean,bool,,cdl_u22,int,127.0.0.1:5000,analogOutput,24,Placeholder
 W,ts_u23,analog-input,dimensionless,,.,cdl_u23,Input,Real,dimensionless,,cdl_u23,dimensionless,127.0.0.1:5000,analogOutput,25,Placeholder
 X,ts_u24,analog-input,dimensionless,,.,cdl_u24,Input,Real,dimensionless,,cdl_u24,dimensionless,127.0.0.1:5000,analogOutput,26,Placeholder
-Y,ts_u25,binary-input,run_state,,.,cdl_u25,Input,Boolean,bool,,cdl_u25,,127.0.0.1:5000,analogOutput,27,Placeholder
-Z,ts_u26,multistate-input,mode,,.,cdl_u26,Input,Integer,int,,cdl_u26,,127.0.0.1:5000,analogOutput,28,Placeholder
+Y,ts_u25,binary-input,run_state,,.,cdl_u25,Input,Boolean,bool,,cdl_u25,int,127.0.0.1:5000,analogOutput,27,Placeholder
+Z,ts_u26,multistate-input,mode,,.,cdl_u26,Input,Integer,int,,cdl_u26,int,127.0.0.1:5000,analogOutput,28,Placeholder
 ,,,,,,,,,,,,,,,,
 A,ts_y1,analog-output,dimensionless,0,.,cdl_y1,Output,Real,dimensionless,,cdl_y1,dimensionless,127.0.0.1:5000,analogInput,29,Placeholder
 B,ts_y2,analog-output,dimensionless,0,.,cdl_y2,Output,Real,dimensionless,,cdl_y2,dimensionless,127.0.0.1:5000,analogInput,30,Placeholder

@@ -15,13 +15,13 @@ Water Flow,ts_u10,analog-input,gpm,.,cdl_u10,Input,Real,m3/s,,cdl_u10,m3/s,127.0
 Temperature Difference,ts_u11,analog-input,dF,.,cdl_u11,Input,Real,dC,,cdl_u11,dC,127.0.0.1:5000,analogOutput,13,Placeholder
 Temperature,ts_u12,analog-input,F,.,cdl_u12,Input,Real,K,,cdl_u12,K,127.0.0.1:5000,analogOutput,14,Placeholder
 Air Flow,ts_u13,analog-input,cfm,.,cdl_u13,Input,Real,m3/s,,cdl_u13,m3/s,127.0.0.1:5000,analogOutput,15,Placeholder
-Boolean,ts_u14,binary-input,occupancy,.,cdl_u14,Input,Boolean,bool,,cdl_u14,,127.0.0.1:5000,analogOutput,16,Placeholder
-Boolean,ts_u15,binary-input,window_switch,.,cdl_u15,Input,Boolean,bool,,cdl_u15,,127.0.0.1:5000,analogOutput,17,Placeholder
-Boolean,ts_u16,binary-input,run_state,.,cdl_u16,Input,Boolean,bool,,cdl_u16,,127.0.0.1:5000,analogOutput,18,Placeholder
-Multistate,ts_u17,multistate-input,mode,.,cdl_u17,Input,Integer,int,,cdl_u17,,127.0.0.1:5000,analogOutput,19,Placeholder
-Multistate,ts_u18,multistate-input,mode,.,cdl_u18,Input,Integer,int,,cdl_u18,,127.0.0.1:5000,analogOutput,20,Placeholder
-Multistate,ts_u19,multistate-input,mode,.,cdl_u19,Input,Integer,int,,cdl_u19,,127.0.0.1:5000,analogOutput,21,Placeholder
-Multistate,ts_u20,multistate-input,mode,.,cdl_u20,Input,Integer,int,,cdl_u20,,127.0.0.1:5000,analogOutput,22,Placeholder
+Boolean,ts_u14,binary-input,occupancy,.,cdl_u14,Input,Boolean,bool,,cdl_u14,int,127.0.0.1:5000,analogOutput,16,Placeholder
+Boolean,ts_u15,binary-input,window_switch,.,cdl_u15,Input,Boolean,bool,,cdl_u15,int,127.0.0.1:5000,analogOutput,17,Placeholder
+Boolean,ts_u16,binary-input,run_state,.,cdl_u16,Input,Boolean,bool,,cdl_u16,int,127.0.0.1:5000,analogOutput,18,Placeholder
+Multistate,ts_u17,multistate-input,mode,.,cdl_u17,Input,Integer,int,,cdl_u17,int,127.0.0.1:5000,analogOutput,19,Placeholder
+Multistate,ts_u18,multistate-input,mode,.,cdl_u18,Input,Integer,int,,cdl_u18,int,127.0.0.1:5000,analogOutput,20,Placeholder
+Multistate,ts_u19,multistate-input,mode,.,cdl_u19,Input,Integer,int,,cdl_u19,int,127.0.0.1:5000,analogOutput,21,Placeholder
+Multistate,ts_u20,multistate-input,mode,.,cdl_u20,Input,Integer,int,,cdl_u20,int,127.0.0.1:5000,analogOutput,22,Placeholder
 ,,,,,,,,,,,,,,,
 Temperature,ts_y1,analog-output,F,.,cdl_y1,Output,Real,K,,cdl_y1,K,127.0.0.1:5000,analogInput,23,Placeholder
 Air Flow,ts_y2,analog-output,cfm,.,cdl_y2,Output,Real,m3/s,,cdl_y2,m3/s,127.0.0.1:5000,analogInput,24,Placeholder
