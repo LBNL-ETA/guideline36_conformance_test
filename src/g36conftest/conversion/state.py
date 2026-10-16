@@ -99,7 +99,7 @@ groups = G.s = Groups({
     S('on',      True),
     S('off',     False),]),
 
-'switch': G([
+'window_switch': G([
     S('closed',  True),
     S('open',    False),]),
 
