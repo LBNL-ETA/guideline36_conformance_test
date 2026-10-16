@@ -197,6 +197,71 @@ class Test:
                     df_new.loc[i,'VariableName'] = df_new.loc[i,'VariableName'][0]
             return df_new
 
+    def convert_device_to_test(self, value, point):
+        """
+        Convert a value from device units to test script units.
+        
+        Parameters
+        ----------
+        value: <float, int, bool, str>
+          The value to convert.
+        point: <object>
+          The point object containing unit information.
+
+        Returns
+        -------
+        value: <float, int, bool, str>
+          The converted value.
+
+        """
+        try:
+            converted_value = convert(value, point.unit_in_device, point.unit_in_test).magnitude
+        except:
+            # If a state, use state conversion
+            if point.unit_in_device == 'int':
+                value = int(value)
+            elif point.unit_in_device == 'bool':
+                value = bool(value)
+            else:
+                raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
+            converted_value = _convert_state(frm=value, to=str, group=point.unit_in_test)
+        
+        return converted_value
+
+    def convert_test_to_device(self, value, point):
+        """
+        Convert a value from test script units to device units.
+        
+        Parameters
+        ----------
+        value: <float, int, bool, str>
+          The value to convert.
+        point: <object>
+          The point object containing unit information.
+
+        Returns
+        -------
+        value: <float, int, bool, str>
+          The converted value.
+
+        """
+        if isinstance(value, str):
+            # If a state, use state conversion
+            if point.unit_in_device == 'int':
+                to_type = int
+            elif point.unit_in_device == 'bool':
+                to_type = bool
+            elif point.unit_in_device == 'str':
+                to_type = str
+            else:
+                raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
+            converted_value = _convert_state(frm=value, to=to_type, group=point.unit_in_test)
+        else:
+            # Otherwise use physical unit conversion
+            converted_value = convert(value, point.unit_in_test, point.unit_in_device).magnitude
+        
+        return converted_value
+
     def read_points(self):
         points = dict()
         for point in sorted(self.point_properties.index.values):
@@ -205,18 +270,7 @@ class Test:
             value = self.controller.get_current_variable_value(point)
             p = self.controller.get_point(point)
             # If acceptable units assigned, convert from device to test script
-            try:
-                value = convert(value, p.unit_in_device, p.unit_in_test).magnitude
-            # Otherwise, likely a "state" rather than "physical unit"
-            except:
-                # If a state, use state conversion
-                if p.unit_in_device == 'int':
-                    value = int(value)
-                elif p.unit_in_device == 'bool':
-                    value = bool(value)
-                else:
-                    raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(p.unit_in_device, p.name))
-                value = _convert_state(frm=value, to=str, group=p.unit_in_test)
+            value = self.convert_device_to_test(value, p)
             points[var_name_in_test] = value
         return points
 
@@ -379,20 +433,7 @@ class Test:
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
             # Convert value to device units and set in device
             point = self.controller.get_point(key)
-            if isinstance(value_to_set, str):
-                # If a state, use state conversion
-                if point.unit_in_device == 'int':
-                    to_type = int
-                elif point.unit_in_device == 'bool':
-                    to_type = bool
-                elif point.unit_in_device == 'str':
-                    to_type = str
-                else:
-                    raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
-                value_to_set = _convert_state(frm=value_to_set, to=to_type, group=point.unit_in_test)
-            else:
-                # Otherwise use physical unit conversion
-                value_to_set = convert(value_to_set, point.unit_in_test, point.unit_in_device).magnitude
+            value_to_set = self.convert_test_to_device(value_to_set, point)
             self.controller.set_single_point(key, value_to_set)
 
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
@@ -414,7 +455,7 @@ class Test:
                     obj.compute_value(seconds_since_start)
                     # Convert value to device units and set in device
                     point = self.controller.get_point(obj.variable)
-                    value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
+                    value_to_set = self.convert_test_to_device(obj.computed_value, point)
                     self.controller.set_single_point(obj.variable, value_to_set)
                     print('In Top RAMP for {0}: seconds since start is {1}, setting value to {2}'.format(point.name, seconds_since_start, value_to_set))
             for obj in Periodic.instances:
@@ -422,7 +463,7 @@ class Test:
                     obj.compute_value(seconds_since_start)
                     # Convert value to device units and set in device
                     point = self.controller.get_point(obj.variable)
-                    value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
+                    value_to_set = self.convert_test_to_device(obj.computed_value, point)
                     self.controller.set_single_point(obj.variable, value_to_set)
             # Once new values set, let controller update outputs
             self.controller.wait(duration=0.0000001)
@@ -460,11 +501,11 @@ class Test:
                         operator = "="
                         point = self.controller.get_point_by_test_name(output_value_to_check)
                         output_value_to_check = self.controller.get_current_variable_value(point.name)
-                        output_value_to_check = convert(output_value_to_check, point.unit_in_device, point.unit_in_test).magnitude
+                        output_value_to_check = self.convert_device_to_test(output_value_to_check, point)
                 # Get actual point value and convert to test script units
                 actual_output_variable_value = self.controller.get_current_variable_value(output_variable_to_check)
                 point = self.controller.get_point(output_variable_to_check)
-                actual_output_variable_value = convert(actual_output_variable_value, point.unit_in_device, point.unit_in_test).magnitude
+                actual_output_variable_value = self.convert_device_to_test(actual_output_variable_value, point)
                 # If condition met, end test step
                 if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=output_value_to_check):
                     print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, output_value_to_check))
@@ -511,7 +552,7 @@ class Test:
                 obj.compute_value(seconds_since_start)   
                 # Convert value to device units and set in device
                 point = self.controller.get_point(obj.variable)
-                value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
+                value_to_set = self.convert_test_to_device(obj.computed_value, point)
                 self.controller.set_single_point(obj.variable, value_to_set)   
                 print('In Bottom RAMP for {0}: seconds since start is {1}, setting value to {2}'.format(point.name, seconds_since_start, value_to_set))   
         for obj in Periodic.instances:
@@ -519,7 +560,7 @@ class Test:
                 obj.compute_value(seconds_since_start)
                 # Convert value to device units and set in device
                 point = self.controller.get_point(obj.variable)
-                value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
+                value_to_set = self.convert_test_to_device(obj.computed_value, point)
                 self.controller.set_single_point(obj.variable, value_to_set)
         # Once new values set, let controller update outputs
         self.controller.wait(duration=0.0000001)
@@ -588,7 +629,7 @@ class Test:
             # Get current point value and convert to test script units
             value = self.controller.get_current_variable_value(var)
             point = self.controller.get_point(var)
-            value = convert(value, point.unit_in_device, point.unit_in_test).magnitude
+            value = self.convert_device_to_test(value, point)
             vals[var] = value
         return vals
 
@@ -723,7 +764,7 @@ class Test:
                 # Get last point value from device and convert to test script units
                 value = self.controller.get_variable_value_from_prev_time_step(current_variable)
                 point = self.controller.get_point(current_variable)
-                value = convert(value, point.unit_in_device, point.unit_in_test).magnitude
+                value = self.convert_device_to_test(value, point)
                 return value          
             else:
                 names_df = self.point_properties.loc[self.point_properties.name_in_test == expression]
@@ -732,7 +773,7 @@ class Test:
                 # Get current point value from device and convert to test script units
                 value = self.controller.get_current_variable_value(var_to_check)
                 point = self.controller.get_point(var_to_check)
-                value = convert(value, point.unit_in_device, point.unit_in_test).magnitude
+                value = self.convert_device_to_test(value, point)
                 return value
             else:
                 try:
