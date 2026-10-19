@@ -1,6 +1,6 @@
 [project]
 name = "g36conftest"
-version = "0.0.1"
+version = "0.1.0"
 # 'common'
 dependencies = [ 
     "pyyaml",
@@ -12,6 +12,7 @@ dependencies = [
 
 [tool.pixi.package]
 name = "g36conftest"
+publish = true
 [tool.pixi.package.build.backend]
 name = "pixi-build-python"
 [tool.pixi.package.host-dependencies]
@@ -19,6 +20,7 @@ hatchling = "*" # seems redundant. why do i have to put this here?!
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
 
 
 [project.optional-dependencies] # (not dep group)
@@ -30,7 +32,7 @@ simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
 # no windows wheel.
 # otherwise this is almost a std standard python project.
 viz = ["streamlit>=1.35", "plotly>=5.20", "pyyaml"]
-bacnet-test-controller = ["pyfmi", "bacpypes==0.19.0", "rdflib==7.6.0"] # pyfmi on pypi is neglected:
+bacnet-test-controller = ["pyfmi", "bacpypes==0.19.0", "rdflib==7.6.0"] # pyfmi on pypi is x:
 [tool.pixi.feature.bacnet.target.win-64.activation]
 env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 
