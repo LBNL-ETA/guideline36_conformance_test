@@ -10,6 +10,17 @@ dependencies = [
     'pint', "pyfmi",
 ]
 
+[tool.pixi.package]
+name = "g36conftest"
+[tool.pixi.package.build.backend]
+name = "pixi-build-python"
+[tool.pixi.package.host-dependencies]
+hatchling = "*" # seems redundant. why do i have to put this here?!
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+
 [project.optional-dependencies] # (not dep group)
 # installable like g36conftest[bacnet, simulation]
 # interpreted as 'features' by pixi
@@ -44,11 +55,7 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 g36conftest = "g36conftest.cli:cli"
 g36conftest-viz = "viz.launcher:main"
 
-# Both `g36conftest` (in src/g36conftest/) and `viz` (in src/viz/) are packages
-# — tell setuptools to pick up every package under src/ instead of relying on
-# single-package auto-discovery.
-[tool.setuptools.packages.find]
-where = ["src"]
+
 
 
 [dependency-groups]
@@ -62,6 +69,7 @@ channels = ["conda-forge"]
 platforms = [
     "win-64", "linux-64", "osx-64",
     "osx-arm64", "linux-aarch64"]
+preview = ["pixi-build"]
 
 [tool.pixi.pypi-dependencies]
 g36conftest = { path = ".", editable = true }
@@ -77,5 +85,7 @@ bacnet =    {  features = ["bacnet",     'test', 'viz'],   solve-group = "defaul
 simulation = { features = ["simulation", 'test', 'viz'],   solve-group = "default" }
 viz =        { features = ["viz"],                          solve-group = "default" }
 bacnet-test-controller = { features = ["bacnet-test-controller", 'test'],   solve-group = "default" }
+
+
 
 [tool.pixi.tasks]
