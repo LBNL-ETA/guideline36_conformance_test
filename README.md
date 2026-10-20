@@ -142,8 +142,11 @@ works, and perform publicly and display publicly, and to permit others to do so.
 
 Guideline 36 Conformance Test is available under the following [license](https://github.com/LBNL-ETA/guideline36_conformance_test/blob/master/LICENSE.txt).
 
-## Development and contribution
+## Contribution
 
 You may report any issues with using the [Issues](https://github.com/LBNL-ETA/guideline36_conformance_test/issues) button.
-
 Contributions in the form of Pull Requests are always welcome.
+
+## Development
+
+Versioning is managed via `pixi project version`.
