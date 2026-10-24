@@ -257,19 +257,15 @@ class Test:
 
     def _resolve_execution_sequence(self):
         """(Issue #60) Return (sequence, tracking_start) describing which 1-indexed
-        test steps to execute and where per-block pass/fail tracking begins.
+        test steps to execute.
 
         - `sequence` is the ordered list of steps the runner will execute.
-        - `tracking_start` is the step at which block-level pass/fail tracking begins;
-          any step in `sequence` before `tracking_start` is a warmup step (inputs
-          applied, outputs not checked, does not affect passed_blocks/failed_blocks).
+        - `tracking_start` is the first step in `sequence`; the runner uses it to
+          skip the output-check on that first step (no prior step_outputs context
+          for a LAST-based comparison).
 
-        When start_block is None or equals the first block in the test script, the
-        sequence is [1 .. N-1] and tracking_start is 1 (no warmup). When start_block
-        is set and differs from the first block, step 1 is prepended so the run
-        always begins by executing the first step of the first block (e.g. A1)
-        before jumping to the requested block; tracking_start is then the first
-        step whose block matches start_block.
+        When start_block is None, the sequence is [1 .. N-1]. When start_block is
+        set, the sequence starts at the first step of that block.
         """
         total = self.ip.shape[0]
         if self.start_block is None:
@@ -291,10 +287,7 @@ class Test:
                 f"start_block='{self.start_block}' not found in test script. "
                 f"Available blocks: {available}"
             )
-        first_block = str(self.step_blocks[0]) if self.step_blocks[0] is not None else None
-        if first_block == target:
-            return list(range(start_idx, total)), start_idx
-        return [1] + list(range(start_idx, total)), start_idx
+        return list(range(start_idx, total)), start_idx
     
     def format_excel_df(self, df, is_cond_df=False, point_prop=None):
         df_new = df.reset_index().drop([0], axis=1)
@@ -395,12 +388,8 @@ class Test:
         output_acceptable_bounds = self.acceptable_op_bounds.to_dict()
         start_time = self.controller.get_current_time()
 
-        # (Issue #60) Resolve the ordered list of steps to execute and where per-block
-        # tracking begins. When start_block is set and differs from the first block,
-        # the sequence is prepended with step 1 (e.g. A1) as a warmup step so the
-        # controller sees a well-defined initial state before jumping to the requested
-        # block. Warmup steps run inputs but skip output-check and do not participate
-        # in per-block pass/fail tracking.
+        # (Issue #60) Resolve the ordered list of steps to execute. When start_block
+        # is set, the sequence begins at the first step of that block.
         execution_sequence, tracking_start = self._resolve_execution_sequence()
         failed_blocks = []       # list of (block_name, label_of_failing_step)
         passed_blocks = []       # blocks that ran to completion without a failure
@@ -411,46 +400,34 @@ class Test:
 
         if self.start_block is not None:
             print("Starting from test block %s (step %d)" % (self.start_block, tracking_start))
-            if execution_sequence and execution_sequence[0] < tracking_start:
-                warmup_i = execution_sequence[0]
-                print("Running warmup step %d (%s) first to initialize state before block %s" %
-                      (warmup_i, self._get_step_label(warmup_i), self.start_block))
         if self.single_block:
             print("single_block mode: will stop after block %s completes" % (self.start_block,))
 
         for i in execution_sequence:
             self.current_step = i
             current_block = self._get_step_block(i)
-            is_warmup = i < tracking_start
 
-            # Block-boundary tracking is disabled for warmup steps: they do not
-            # contribute to passed_blocks/failed_blocks, and previous_block stays
-            # None so the first tracked step doesn't record a false transition.
-            if not is_warmup:
-                if previous_block is not None and current_block != previous_block:
-                    if not block_had_failure and previous_block is not None:
-                        passed_blocks.append(previous_block)
-                    block_had_failure = False
-                    if skip_block is not None and current_block != skip_block:
-                        skip_block = None
-                    # single_block mode: stop as soon as we leave the requested block.
-                    # Do NOT advance previous_block to current_block here — the new block never
-                    # runs, and leaving previous_block on the just-completed block prevents the
-                    # post-loop tally from double-counting or crediting an unrun block.
-                    if self.single_block and previous_block == self.start_block:
-                        print("single_block mode: reached end of block %s, stopping." % previous_block)
-                        break
-                previous_block = current_block
+            if previous_block is not None and current_block != previous_block:
+                if not block_had_failure and previous_block is not None:
+                    passed_blocks.append(previous_block)
+                block_had_failure = False
+                if skip_block is not None and current_block != skip_block:
+                    skip_block = None
+                # single_block mode: stop as soon as we leave the requested block.
+                # Do NOT advance previous_block to current_block here — the new block never
+                # runs, and leaving previous_block on the just-completed block prevents the
+                # post-loop tally from double-counting or crediting an unrun block.
+                if self.single_block and previous_block == self.start_block:
+                    print("single_block mode: reached end of block %s, stopping." % previous_block)
+                    break
+            previous_block = current_block
 
-                # Skip remaining steps of a block whose earlier step already failed.
-                if skip_block is not None and current_block == skip_block:
-                    print("Skipping step %s (remainder of failed block %s)" % (self._get_step_label(i), skip_block))
-                    continue
+            # Skip remaining steps of a block whose earlier step already failed.
+            if skip_block is not None and current_block == skip_block:
+                print("Skipping step %s (remainder of failed block %s)" % (self._get_step_label(i), skip_block))
+                continue
 
-            if is_warmup:
-                print("starting warmup step %d (%s)" % (i, self._get_step_label(i)))
-            else:
-                print("starting step %d" % i)
+            print("starting step %d" % i)
 
             ip = self.ip.iloc[i].to_dict()
             cond = self.cond.iloc[i]
@@ -470,10 +447,9 @@ class Test:
             actual_outputs = self.get_current_variable_values(variable_list=self.op.columns.values)
             self.step_outputs[self.current_step] = actual_outputs
 
-            # Skip output-check on warmup steps (state-priming only) and on the
-            # first tracked step (mirrors the original `i > 1` guard: there is no
-            # prior step_outputs context to compare against).
-            if not is_warmup and i > tracking_start:
+            # Skip output-check on the first executed step (mirrors the original
+            # `i > 1` guard: there is no prior step_outputs context to compare against).
+            if i > tracking_start:
                 print("Checking if outputs match the expected values")
                 assertion_op = self.assert_output(expected_op_dict = expected_op, actual_output_dict=actual_outputs, acceptable_bounds_dict = output_acceptable_bounds)
                 if not assertion_op:
