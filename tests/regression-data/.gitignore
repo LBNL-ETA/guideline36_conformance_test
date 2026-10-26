@@ -1,1 +1,3 @@
-*obtained.*
+!*.*
+# ignore obtained
+*.obtained.*
