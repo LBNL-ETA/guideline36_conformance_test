@@ -1,0 +1,27 @@
+name: test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+    pytest:
+        runs-on: ubuntu-latest
+        steps:
+            
+        - uses: actions/checkout@v4
+
+        - name: make env
+          uses: prefix-dev/setup-pixi@v0.10.2
+          with:
+            pixi-version: v0.81.0
+            cache: true
+            #auth-host: prefix.dev why this stuff in readme?
+            #auth-token: ${{ secrets.PREFIX_DEV_TOKEN }}
+        
+        - name: run pytest
+          run: pixi run test
+

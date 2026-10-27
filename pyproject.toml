@@ -1,3 +1,4 @@
+
 [project]
 name = "g36conftest"
 version = "0.0.1"
@@ -34,11 +35,8 @@ env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
 [tool.pixi.feature.simulation.target.osx-arm64.dependencies] # so these are empty to denote not to do anything
 [tool.pixi.feature.simulation.target.linux-aarch64.dependencies] # so these are empty to denote not to do anything
 
-[tool.pixi.feature.bacnet-test-controller.dependencies]
-python = "3.11.15*"
-[tool.pixi.feature.bacnet-test-controller.target.win-64.activation]
-env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
-
+[tool.pixi.feature.cicd.dependencies]
+act = '*'
 
 [project.scripts]
 g36conftest = "g36conftest.cli:cli"
@@ -51,10 +49,15 @@ g36conftest-viz = "viz.launcher:main"
 where = ["src"]
 
 
-[dependency-groups]
-test = ["pytest", 'pytest-regressions']
+[dependency-groups] # these are taken as pypi
+test = ["pytest", 'pytest-regressions',]
 #'dev' specifically can be for debugging, formatting, ...
-dev = [ {include-group = "test"}, ] # 
+dev = [ {include-group = "test"}, 
+#  could have code linting
+] # 
+cicd = [
+#"act",# local github actions,
+{include-group="dev"}  ] 
 
 
 [tool.pixi.workspace]
@@ -73,9 +76,10 @@ plotly = ">=5.20"
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
-bacnet =    {  features = ["bacnet",     'test', 'viz'],   solve-group = "default" }
-simulation = { features = ["simulation", 'test', 'viz'],   solve-group = "default" }
-viz =        { features = ["viz"],                          solve-group = "default" }
-bacnet-test-controller = { features = ["bacnet-test-controller", 'test'],   solve-group = "default" }
+bacnet =    {   features = ["bacnet",     ],                    solve-group = "default" }
+simulation = {  features = ["simulation", ],                    solve-group = "default" }
+dev = {         features = ["simulation", "bacnet", "cicd", ],  solve-group = "default" }
 
 [tool.pixi.tasks]
+test = { cmd = "pytest", cwd = "tests", default-environment="dev" }
+
