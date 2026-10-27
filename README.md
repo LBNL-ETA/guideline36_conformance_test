@@ -36,8 +36,8 @@ $ docker compose down
 
 ### Using Pixi
 
-[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation`.
-`exit` to exit.
+[Install pixi](http://pixi.prefix.dev) and enter the 'simulation' environment `pixi shell -e simulation` or 'bacnet' environment
+`pixi shell -e bacnet` depending on the device interface desired.  Use `exit` to exit.
 
 On Windows, you have to manually install [OpenModelica](https://openmodelica.org/).
 The compiler executable, `omc`, will be available on [pixi windows simulation environment activation](./pyproject.toml).
@@ -45,7 +45,7 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
 
 ## Getting Started for a CDL Simulation Device
 
-    - Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
+Note: there is a further dependency of the [Modelica Buildings Library](https://simulationresearch.lbl.gov/modelica/index.html).  OpenModelica already has access to the default version used in this software (v11.0.0).  However, if want to use a custom version of Modelica Buildings Library, it requires downloading or cloning the library and minor edits to `src/DeviceSimcdl.py` in function `DeviceSimcdl._compile_fmu()` to point to its path.
 
 
 ### Run a Test
@@ -72,7 +72,7 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
     - Save point mapping file (CSV) to `conformance_tests/{test_type}/config/`
     - For simulation: place Modelica (.mo) or FMU files in `conformance_tests/{test_type}/simulation_files/`
 
-4. Run the test:
+4. Run the test as configured with ``$ g36conftest``.  Additional options as:
 
     ```
     ❯ g36conftest --help
@@ -100,9 +100,31 @@ The compiler executable, `omc`, will be available on [pixi windows simulation en
 
 Results will be saved to `conformance_tests/{test_type}/results/`
 
+## Visualize a Run
+
+An interactive Streamlit + Plotly UI plots per-run trajectories against
+expected values with tolerance bands and highlights step failures.
+
+- **Standalone** — open the UI for any past run without running a test:
+
+    ```
+    g36conftest-viz
+    ```
+
+    Then open `http://localhost:8501` on the host (the container exposes 8501
+    via `compose.yaml`).
+
+- **Auto-launch after a test** — set `viz.enabled: true` under the `viz:`
+  section in `config/global_config.yaml` (see the template) and run
+  `g36conftest --csv`. The UI launches automatically once the test finishes
+  and preselects the just-completed run.
+
+The viz reads only the runner's CSV outputs and the Excel test script — the
+runner and its device layer are untouched.
+
 ## Copyright Notice
 
-Guideline 36 Conformance Test Copyright (c) 2019 to 2025, The Regents of the University of California through Lawrence Berkeley National Laboratory, and Battelle Memorial Institute through Pacific Northwest National Laboratory (both subject to receipt of any required approvals from the U.S. Dept. of Energy).
+Guideline 36 Conformance Test Copyright (c) 2019 to 2026, The Regents of the University of California through Lawrence Berkeley National Laboratory, and Battelle Memorial Institute through Pacific Northwest National Laboratory (both subject to receipt of any required approvals from the U.S. Dept. of Energy).
 All rights reserved.
 
 If you have questions about your rights to use or distribute this software,

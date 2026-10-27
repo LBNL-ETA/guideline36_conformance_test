@@ -19,6 +19,11 @@ simulation = ["pyfmi", ] # pyfmi on pypi is neglected:
 # last update dec ~2018.
 # no windows wheel.
 # otherwise this is almost a std standard python project.
+viz = ["streamlit>=1.35", "plotly>=5.20", "pyyaml"]
+bacnet-test-controller = ["pyfmi", "bacpypes==0.19.0", "rdflib==7.6.0"] # pyfmi on pypi is neglected:
+[tool.pixi.feature.bacnet.target.win-64.activation]
+env = {"PATH" = "%PATH%;%OPENMODELICAHOME%/bin" }
+
 [tool.pixi.feature.simulation.dependencies]
 pyfmi = ">=2.21.0,<3"  # get pyfmi from conda (overrides above)
 [tool.pixi.feature.simulation.target.linux-64.dependencies]
@@ -35,6 +40,13 @@ act = '*'
 
 [project.scripts]
 g36conftest = "g36conftest.cli:cli"
+g36conftest-viz = "viz.launcher:main"
+
+# Both `g36conftest` (in src/g36conftest/) and `viz` (in src/viz/) are packages
+# — tell setuptools to pick up every package under src/ instead of relying on
+# single-package auto-discovery.
+[tool.setuptools.packages.find]
+where = ["src"]
 
 
 [dependency-groups] # these are taken as pypi
@@ -57,6 +69,10 @@ platforms = [
 [tool.pixi.pypi-dependencies]
 g36conftest = { path = ".", editable = true }
 
+
+[tool.pixi.feature.viz.pypi-dependencies]
+streamlit = ">=1.35"
+plotly = ">=5.20"
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones

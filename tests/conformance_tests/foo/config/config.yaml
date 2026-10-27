@@ -51,18 +51,18 @@ device:
   # ---------------------------------------------------------------------------
   bacnet:
     # BACnet network IP address
-    network_address: 192.168.1.100
+    network_address: 127.0.0.1/8
     
-    # BACnet device address (integer)
-    device_address: 100
+    # BACnet device address
+    device_address: 127.0.0.1:5000
     
     # BACnet device ID (integer)
-    device_id: 123456
+    device_id: 599
     
     # Point mapping file - maps test variable names to BACnet point names
     # CSV format: header on row 4, columns include 'Variable Name', 'BACnet Name'
     # Can be absolute or relative to project root
-    point_map: conformance_tests/vav_rh/config/point_mapping_bacnet.csv
+    point_map: conformance_tests/foo/config/pointmap-foo.csv
 
 
 # =============================================================================
