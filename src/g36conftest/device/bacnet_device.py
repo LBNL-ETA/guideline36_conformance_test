@@ -73,19 +73,19 @@ class BacnetDevice(BaseDevice):
             # Write points
             for point_name, point in self.points.items():
                 if point.value is not None:
-                    if 'Input' in point.point_type:
-                        obj_type = self._convert_typical_to_bac0(point.metadata['bacnet_object_type'])
+                    if 'Input' in point.point_type and isinstance(point_name, str):
+                        bac0_obj_type = self._convert_typical_to_bac0(point.metadata['bacnet_object_type'])
                         write_str = '{0} {1} {2} {3} {4} - {5}'.format(point.metadata['bacnet_address'],
-                                                                     point.metadata['bacnet_object_type'],
+                                                                     bac0_obj_type,
                                                                      int(point.metadata['bacnet_object_id']),
                                                                      'presentValue',
                                                                      point.value,
-                                                                     1)
+                                                                     8)
                         # Try writing point
                         try:
                             await self.bacnet._write(write_str)
                         except Exception as e:
-                            print(f"Error writing point {0}: {e}".format(point.name))
+                            print(f"Error writing point {point}: {e}")
 
         asyncio.run_coroutine_threadsafe(_run_write(), self._loop).result()
 
@@ -101,14 +101,20 @@ class BacnetDevice(BaseDevice):
             address = None
             read_arg = {}
             for point_name, point in self.points.items():
-                if 'Output' in point.point_type:
-                    obj_type = self._convert_typical_to_bac0(point.metadata['bacnet_object_type'])
+                if 'Output' in point.point_type and isinstance(point_name, str):
+                    bac0_obj_type = self._convert_typical_to_bac0(point.metadata['bacnet_object_type'])
+                    if point.metadata['bacnet_object_type'] == 'event-enrollment':
+                        value_string = 'eventState'
+                    elif point.metadata['bacnet_object_type'] == 'program':
+                        value_string = 'programState'      
+                    else:
+                        value_string = 'presentValue'                 
                     if i == 1:
                         address = point.metadata['bacnet_address']
                         read_arg = {'address' : address}
-                        read_arg['objects'] = {'{0}:{1}'.format(point.metadata['bacnet_object_type'], int(point.metadata['bacnet_object_id'])) : ['presentValue']}
+                        read_arg['objects'] = {'{0}:{1}'.format(bac0_obj_type, int(point.metadata['bacnet_object_id'])) : [value_string]}
                     else:
-                        read_arg['objects']['{0}:{1}'.format(point.metadata['bacnet_object_type'], int(point.metadata['bacnet_object_id']))] = ['presentValue']
+                        read_arg['objects']['{0}:{1}'.format(bac0_obj_type, int(point.metadata['bacnet_object_id']))] = [value_string]
                     i = i + 1
 
             if not read_arg:
@@ -121,7 +127,7 @@ class BacnetDevice(BaseDevice):
                 # Interpret read results
                 for r in res:
                     for point_name, point in self.points.items():
-                        if int(r.split(',')[1]) == point.metadata['bacnet_object_id']:
+                        if (r.split(',')[0] == point.metadata['bacnet_object_type']) and (int(r.split(',')[1]) == point.metadata['bacnet_object_id']):
                             value = res[r][0][1]
                             self._cache_point_value(point.name, value)
             except Exception as e:
@@ -402,6 +408,7 @@ class BacnetDevice(BaseDevice):
             'binary-value':'binaryValue',
             'multistate-input':'multiStateInput',
             'multistate-output':'multiStateOutput',
+            'multistate-value':'multiStateValue',
             'event-enrollment':'eventEnrollment',
             'loop':'loop',
             'program':'program',
