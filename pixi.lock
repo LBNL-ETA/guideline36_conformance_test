@@ -7429,6 +7429,12 @@ packages:
   - pyfmi
   - bac0 ; extra == 'bacnet'
   - pyfmi ; extra == 'simulation'
+  - streamlit>=1.35 ; extra == 'viz'
+  - plotly>=5.20 ; extra == 'viz'
+  - pyyaml ; extra == 'viz'
+  - pyfmi ; extra == 'bacnet-test-controller'
+  - bacpypes==0.19.0 ; extra == 'bacnet-test-controller'
+  - rdflib==7.6.0 ; extra == 'bacnet-test-controller'
 - pypi: https://files.pythonhosted.org/packages/00/b7/e3bf5133d697a08128598c8d0abc5e16377b51465a33756de24fa7dee953/aiosqlite-0.22.1-py3-none-any.whl
   name: aiosqlite
   version: 0.22.1

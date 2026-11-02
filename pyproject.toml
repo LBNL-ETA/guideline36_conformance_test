@@ -78,7 +78,7 @@ plotly = ">=5.20"
 default = { solve-group = "default" }  # just the 'common' ones
 bacnet =    {   features = ["bacnet",     ],                    solve-group = "default" }
 simulation = {  features = ["simulation", ],                    solve-group = "default" }
-dev = {         features = ["simulation", "bacnet", "cicd", ],  solve-group = "default" }
+dev = {         features = ["simulation", "bacnet", "cicd", "test" ],  solve-group = "default" }
 
 [tool.pixi.tasks]
 test = { cmd = "pytest", cwd = "tests", default-environment="dev" }
