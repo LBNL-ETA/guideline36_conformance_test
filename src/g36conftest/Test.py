@@ -220,11 +220,12 @@ class Test:
             # If a state, use state conversion
             if point.unit_in_device == 'int':
                 value = int(value)
+                converted_value = _convert_state(frm=value, to=str, group=point.unit_in_test)
             elif point.unit_in_device == 'bool':
                 value = bool(value)
+                converted_value = _convert_state(frm=value, to=str, group=point.unit_in_test)
             else:
-                raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
-            converted_value = _convert_state(frm=value, to=str, group=point.unit_in_test)
+                converted_value = value
         
         return converted_value
 
@@ -270,7 +271,10 @@ class Test:
             value = self.controller.get_current_variable_value(point)
             p = self.controller.get_point(point)
             # If acceptable units assigned, convert from device to test script
-            value = self.convert_device_to_test(value, p)
+            try:
+                value = self.convert_device_to_test(value, p)
+            except:
+                print('Error converting point {0} with value {1}'.format(p, value))
             points[var_name_in_test] = value
         return points
 
