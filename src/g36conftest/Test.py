@@ -54,10 +54,7 @@ class Test:
         self.test_file = self.test_config["test_script"]
         self.input_points_header = self.test_config.get("input_points_header", "BACnet Inputs")
         self.conditions_header = self.test_config.get("conditions_header", "Conditions for Evaluation of Test Step")
-        self.output_points_header = self.test_config.get("output_points_header", "BACnet Expected Outputs")
-        # Issue #60: persistent-testing options
-        # start_block: label of the test block to start with (e.g. "A", "BB"). None => start from step 1.
-        # single_block: if True, only run start_block; else continue to end (skipping remainder of any failing block).
+        self.output_points_header = self.test_config.get("output_points_header", "BACnet Expected Outputs")        
         self.start_block = self.test_config.get("start_block", None)
         self.single_block = self.test_config.get("single_block", False)
         # Initiate Device
@@ -81,8 +78,6 @@ class Test:
     def init_test_sequence(self, filename, ip_header, cond_header, op_header, point_prop):
         self.test_df = pd.read_excel(self.test_scripts_dir / filename, index_col=0, header=None)
         self.step_labels = self._extract_step_labels(df = self.test_df)
-        # Issue #60: parallel lists of block name and step-within-block for each step label,
-        # for start_block gating and per-row CSV annotation.
         self.step_blocks, self.step_step_nums = self._extract_step_blocks(df = self.test_df)
         self.ip = self.format_excel_df(df=self.test_df.loc[ip_header:cond_header].iloc[1:-1], point_prop=point_prop)
         self.cond = self.format_excel_df(df=self.test_df.loc[cond_header:op_header].iloc[1:-1], is_cond_df=True, point_prop=point_prop)
@@ -178,7 +173,7 @@ class Test:
         return label
 
     def _extract_step_blocks(self, df):
-        """(Issue #60) Search the DataFrame for 'Test Block' and 'Test Step' cell values and
+        """Search the DataFrame for 'Test Block' and 'Test Step' cell values and
         return two parallel lists giving each step's block name and its step-number-within-block.
 
         This is a sibling of self._extract_step_labels() that keeps that method's return value
@@ -244,19 +239,19 @@ class Test:
         return step_blocks, step_step_nums
 
     def _get_step_block(self, step_num):
-        """(Issue #60) Block name for a 1-indexed test step, or None if not derivable."""
+        """Block name for a 1-indexed test step, or None if not derivable."""
         if self.step_blocks and (step_num - 1) < len(self.step_blocks):
             return self.step_blocks[step_num - 1]
         return None
 
     def _get_step_step_num(self, step_num):
-        """(Issue #60) Step-number-within-block for a 1-indexed test step, or None."""
+        """Step-number-within-block for a 1-indexed test step, or None."""
         if self.step_step_nums and (step_num - 1) < len(self.step_step_nums):
             return self.step_step_nums[step_num - 1]
         return None
 
     def _resolve_execution_sequence(self):
-        """(Issue #60) Return (sequence, tracking_start) describing which 1-indexed
+        """Return (sequence, tracking_start) describing which 1-indexed
         test steps to execute.
 
         - `sequence` is the ordered list of steps the runner will execute.
@@ -345,7 +340,7 @@ class Test:
             file = output_dir / f"{name}_values.csv"
             if not file.exists():
                 fp = open(file, "w")
-                # (Issue #60) Annotate each row with the current test block and step so
+                # Annotate each row with the current test block and step so
                 # visualization tooling can demarcate step boundaries even when a step
                 # terminates early via a variable-based condition.
                 column_names = 'time,test_block,test_step,' + ','.join(list(points.keys())) + '\n'
@@ -388,7 +383,7 @@ class Test:
         output_acceptable_bounds = self.acceptable_op_bounds.to_dict()
         start_time = self.controller.get_current_time()
 
-        # (Issue #60) Resolve the ordered list of steps to execute. When start_block
+        # (Resolve the ordered list of steps to execute. When start_block
         # is set, the sequence begins at the first step of that block.
         execution_sequence, tracking_start = self._resolve_execution_sequence()
         failed_blocks = []       # list of (block_name, label_of_failing_step)
@@ -399,9 +394,9 @@ class Test:
         block_had_failure = False
 
         if self.start_block is not None:
-            print("Starting from test block %s (step %d)" % (self.start_block, tracking_start))
+            print("Starting from test block %s1" % (self.start_block))
         if self.single_block:
-            print("single_block mode: will stop after block %s completes" % (self.start_block,))
+            print("single_block mode: will stop after block %s completes" % (self.start_block))
 
         for i in execution_sequence:
             self.current_step = i
@@ -427,8 +422,7 @@ class Test:
                 print("Skipping step %s (remainder of failed block %s)" % (self._get_step_label(i), skip_block))
                 continue
 
-            print("starting step %d" % i)
-
+            
             ip = self.ip.iloc[i].to_dict()
             cond = self.cond.iloc[i]
             expected_op = self.op.iloc[i].to_dict()
@@ -484,7 +478,7 @@ class Test:
             print("moving to the next step")
             print()
 
-        # (Issue #60) Close out the final block's pass/fail tally after the loop exits.
+
         if previous_block is not None and not block_had_failure and previous_block not in passed_blocks:
             # Only count as passed if it wasn't already recorded as failed.
             if not any(fb == previous_block for fb, _ in failed_blocks):

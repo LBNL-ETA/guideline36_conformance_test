@@ -79,13 +79,11 @@ test:
   conditions_header: "Conditions for Evaluation of Test Step"
   output_points_header: "Expected Outputs"
 
-  # ---------------------------------------------------------------------------
-  # Persistent-testing options (Issue #60)
-  # ---------------------------------------------------------------------------
+  
   # start_block: label of the test block to start with (e.g. A, B, AA, BB).
-  # Must match a block label in the test script. If unset (default), the run
+  # Must match a block label in the test script. If unset, the run
   # starts from the first step of the script.
-  start_block: BB
+  start_block: AA
   #
   # single_block: if true, run only the block named by start_block and stop
   # when it ends. If false (default), continue to the end of the script; if a
