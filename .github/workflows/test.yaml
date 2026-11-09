@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - 54-initial-ci # TODO: remove
   pull_request:
     branches:
       - main
