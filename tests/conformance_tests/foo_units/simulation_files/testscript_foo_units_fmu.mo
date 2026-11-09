@@ -72,29 +72,24 @@ model testscript_foo_units_fmu
   Buildings.Controls.OBC.CDL.Interfaces.RealInput cdl_u13 annotation (Placement(
         transformation(extent = {{-40, 70}, {-20, 90}}),      iconTransformation(
           extent={{-120,90},{-100,110}})));
-  Buildings.Controls.OBC.CDL.Interfaces.RealInput cdl_u14 annotation (Placement(
-        transformation(extent = {{-40, 50}, {-20, 70}}),      iconTransformation(
-          extent={{-120,90},{-100,110}})));
-  Buildings.Controls.OBC.CDL.Interfaces.RealInput cdl_u15 annotation (Placement(
-        transformation(extent = {{-40, 30}, {-20, 50}}),      iconTransformation(
-          extent={{-120,90},{-100,110}})));
-  Buildings.Controls.OBC.CDL.Interfaces.RealInput cdl_u16 annotation (Placement(
-        transformation(extent = {{-40, 10}, {-20, 30}}),      iconTransformation(
-          extent={{-120,90},{-100,110}})));
-  Buildings.Controls.OBC.CDL.Interfaces.RealInput cdl_u17 annotation (Placement(
-        transformation(extent = {{-40, -10}, {-20, 10}}),     iconTransformation(
-          extent={{-120,90},{-100,110}})));
-  Buildings.Controls.OBC.CDL.Interfaces.RealInput cdl_u18 annotation (Placement(
-        transformation(extent = {{-40, -30}, {-20, -10}}),    iconTransformation(
-          extent={{-120,90},{-100,110}})));
-  Buildings.Controls.OBC.CDL.Interfaces.RealInput cdl_u19 annotation(
-    Placement(transformation(origin = {0, -40}, extent = {{-40, -10}, {-20, 10}}), iconTransformation(extent = {{-120, 90}, {-100, 110}})));
-  Buildings.Controls.OBC.CDL.Interfaces.RealInput cdl_u20 annotation(
-    Placement(transformation(origin = {0, -40}, extent = {{-40, -30}, {-20, -10}}), iconTransformation(extent = {{-120, 90}, {-100, 110}})));
   Buildings.Controls.OBC.CDL.Interfaces.RealOutput cdl_y12 annotation(
     Placement(transformation(origin = {80, 0}, extent = {{-80, 90}, {-60, 110}}), iconTransformation(origin = {146, -28}, extent = {{-80, 90}, {-60, 110}})));
   Buildings.Controls.OBC.CDL.Interfaces.RealOutput cdl_y13 annotation(
     Placement(transformation(origin = {80, 0}, extent = {{-80, 70}, {-60, 90}}), iconTransformation(origin = {146, -28}, extent = {{100, 90}, {120, 110}})));
+  Buildings.Controls.OBC.CDL.Interfaces.BooleanInput cdl_u14 annotation(
+    Placement(transformation(origin = {-30, 60}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {-6, 44}, extent = {{-20, -20}, {20, 20}})));
+  Buildings.Controls.OBC.CDL.Interfaces.BooleanInput cdl_u15 annotation(
+    Placement(transformation(origin = {-30, 40}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {-6, 44}, extent = {{-20, -20}, {20, 20}})));
+  Buildings.Controls.OBC.CDL.Interfaces.BooleanInput cdl_u16 annotation(
+    Placement(transformation(origin = {-30, 20}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {-6, 44}, extent = {{-20, -20}, {20, 20}})));
+  Buildings.Controls.OBC.CDL.Interfaces.IntegerInput cdl_u17 annotation(
+    Placement(transformation(origin = {-30, 0}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {32, -18}, extent = {{-20, -20}, {20, 20}})));
+  Buildings.Controls.OBC.CDL.Interfaces.IntegerInput cdl_u20 annotation(
+    Placement(transformation(origin = {-30, -60}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {32, -18}, extent = {{-20, -20}, {20, 20}})));
+  Buildings.Controls.OBC.CDL.Interfaces.IntegerInput cdl_u19 annotation(
+    Placement(transformation(origin = {-30, -40}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {32, -18}, extent = {{-20, -20}, {20, 20}})));
+  Buildings.Controls.OBC.CDL.Interfaces.IntegerInput cdl_u18 annotation(
+    Placement(transformation(origin = {-30, -20}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {32, -18}, extent = {{-20, -20}, {20, 20}})));
 equation
   // Check that 69.6 F is within 0.5 F of 70 F, in K
   cdl_y6 = cdl_u6 - 0.2221;

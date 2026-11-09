@@ -1,7 +1,9 @@
 import pandas as pd
 import re
 from pathlib import Path
+from datetime import datetime
 import math
+import time
 from .utils.config_loader import load_config
 from .conversion.units import convert
 from .conversion.state import convert as _
@@ -310,6 +312,71 @@ class Test:
                     df_new.loc[i,'VariableName'] = df_new.loc[i,'VariableName'][0]
             return df_new
 
+    def convert_device_to_test(self, value, point):
+        """
+        Convert a value from device units to test script units.
+        
+        Parameters
+        ----------
+        value: <float, int, bool, str>
+          The value to convert.
+        point: <object>
+          The point object containing unit information.
+
+        Returns
+        -------
+        value: <float, int, bool, str>
+          The converted value.
+
+        """
+        try:
+            converted_value = convert(value, point.unit_in_device, point.unit_in_test).magnitude
+        except:
+            # If a state, use state conversion
+            if point.unit_in_device == 'int':
+                value = int(value)
+            elif point.unit_in_device == 'bool':
+                value = bool(value)
+            else:
+                raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
+            converted_value = _convert_state(frm=value, to=str, group=point.unit_in_test)
+        
+        return converted_value
+
+    def convert_test_to_device(self, value, point):
+        """
+        Convert a value from test script units to device units.
+        
+        Parameters
+        ----------
+        value: <float, int, bool, str>
+          The value to convert.
+        point: <object>
+          The point object containing unit information.
+
+        Returns
+        -------
+        value: <float, int, bool, str>
+          The converted value.
+
+        """
+        if isinstance(value, str):
+            # If a state, use state conversion
+            if point.unit_in_device == 'int':
+                to_type = int
+            elif point.unit_in_device == 'bool':
+                to_type = bool
+            elif point.unit_in_device == 'str':
+                to_type = str
+            else:
+                raise Exception('Unknown state unit {0} for point name {1}.  Must be "int", "bool", or "str".'.format(point.unit_in_device, point.name))
+            converted_value = _convert_state(frm=value, to=to_type, group=point.unit_in_test)
+        else:
+            # Otherwise use physical unit conversion
+            converted_value = convert(value, point.unit_in_test, point.unit_in_device).magnitude
+        
+        return converted_value
+
     def read_points(self):
         points = dict()
         for point in sorted(self.point_properties.index.values):
@@ -318,11 +385,7 @@ class Test:
             value = self.controller.get_current_variable_value(point)
             p = self.controller.get_point(point)
             # If acceptable units assigned, convert from device to test script
-            try:
-                value = convert(value, p.unit_in_device, p.unit_in_test).magnitude
-            # Otherwise, likely a "state" rather than "unit", just print as is for now # TODO
-            except:
-                pass
+            value = self.convert_device_to_test(value, p)
             points[var_name_in_test] = value
         return points
 
@@ -520,22 +583,22 @@ class Test:
                     op.get_parameter_dict()                    
                     value_to_set = op.params['periodic_start']
                 elif "=INTERPOLATE(" in val:                    
-                    op = InterpolateOperation(raw_string=val, test_obj=self)                    
+                    op = InterpolateOperation(raw_string=val, test_obj=self, variable=key)                    
                     op.get_parameter_dict()
                     op.compute_value()
                     value_to_set = op.computed_value
                 elif "=ADD(" in val:                    
-                    op = Add(raw_string=val, test_obj=self)
+                    op = Add(raw_string=val, test_obj=self, variable=key)
                     op.get_parameter_dict()
                     op.compute_value()
                     value_to_set = op.computed_value                
                 elif "=SUB(" in val:                    
-                    op = Sub(raw_string=val, test_obj=self)
+                    op = Sub(raw_string=val, test_obj=self, variable=key)
                     op.get_parameter_dict()
                     op.compute_value()
                     value_to_set = op.computed_value
                 elif "=MULT(" in val:                    
-                    op = Mul(raw_string=val, test_obj=self)
+                    op = Mul(raw_string=val, test_obj=self, variable=key)
                     op.get_parameter_dict()
                     op.compute_value()
                     value_to_set = op.computed_value  
@@ -558,13 +621,8 @@ class Test:
             var_name_in_test = self.point_properties.loc[key].name_in_test
             print("Setting input %s to %s"%(var_name_in_test, value_to_set))
             # Convert value to device units and set in device
-            # Handle string/boolean conversions # TODO this is hardcoded and needs to be made device-flexible
-            if isinstance(value_to_set, str):
-                value_to_set = _convert_state(value_to_set, int)
-            else:
-            # Handle all other conversions
-                point = self.controller.get_point(key)
-                value_to_set = convert(value_to_set, point.unit_in_test, point.unit_in_device).magnitude
+            point = self.controller.get_point(key)
+            value_to_set = self.convert_test_to_device(value_to_set, point)
             self.controller.set_single_point(key, value_to_set)
 
     def test_conditions(self, condition, st, sleep_interval=None, verbose=False, to_csv=False, name=None):
@@ -574,23 +632,27 @@ class Test:
         current_time = self.controller.get_current_time()
         last_print = None
         condition_met = False
+        pause_time = None
         # Check if time condition is met to end test step
-        while current_time - st < condition['ClockTime']:
-            seconds_since_start = int(current_time - st)
+        while int(current_time - st) < condition['ClockTime']:
+            # Update seconds_since_start
+            seconds_since_start_exact = current_time - st
+            seconds_since_start = round(seconds_since_start_exact)
             # Compute and set new input values for all ramps and periodics at this step
             for obj in Ramp.instances:
-                if obj.params['ramp_step']:                        
+                if obj.params['ramp_step']:                 
                     obj.compute_value(seconds_since_start)
                     # Convert value to device units and set in device
                     point = self.controller.get_point(obj.variable)
-                    value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
+                    value_to_set = self.convert_test_to_device(obj.computed_value, point)
                     self.controller.set_single_point(obj.variable, value_to_set)
+                    print('In Top RAMP for {0}: seconds since start is {1}, setting value to {2}'.format(point.name, seconds_since_start, value_to_set))
             for obj in Periodic.instances:
                 if obj.params['periodic_step']:
                     obj.compute_value(seconds_since_start)
                     # Convert value to device units and set in device
                     point = self.controller.get_point(obj.variable)
-                    value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
+                    value_to_set = self.convert_test_to_device(obj.computed_value, point)
                     self.controller.set_single_point(obj.variable, value_to_set)
             # Once new values set, let controller update outputs
             self.controller.wait(duration=0.0000001)
@@ -628,34 +690,47 @@ class Test:
                         operator = "="
                         point = self.controller.get_point_by_test_name(output_value_to_check)
                         output_value_to_check = self.controller.get_current_variable_value(point.name)
-                        output_value_to_check = convert(output_value_to_check, point.unit_in_device, point.unit_in_test).magnitude
+                        output_value_to_check = self.convert_device_to_test(output_value_to_check, point)
                 # Get actual point value and convert to test script units
                 actual_output_variable_value = self.controller.get_current_variable_value(output_variable_to_check)
                 point = self.controller.get_point(output_variable_to_check)
-                actual_output_variable_value = convert(actual_output_variable_value, point.unit_in_device, point.unit_in_test).magnitude
+                actual_output_variable_value = self.convert_device_to_test(actual_output_variable_value, point)
                 # If condition met, end test step
                 if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=output_value_to_check):
                     print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, output_value_to_check))
                     print()
 
                     return
-
             # If time and variable conditions not met to end test step, wait and advance time
-            wait_duration = sleep_interval if sleep_interval else 10
-            self.controller.wait(wait_duration) 
-            current_time = self.controller.get_current_time()         
+            # Handle differently for simulation and bacnet, where bacnet is assumed to operate in real time.
+            device_type = self.controller.get_type()
+            if device_type == 'simulation':
+                wait_duration = 10
+                self.controller.wait(wait_duration) 
+                current_time = self.controller.get_current_time()  
+            else:
+                print('In test step {0}, {1} ({2}) seconds since start of step.'.format(self._get_step_label(self.current_step), seconds_since_start, seconds_since_start_exact))
+                if pause_time is not None:
+                    current_time = self.controller.get_current_time()
+                    wait_duration = 10 - (current_time - st)%10
+                else:
+                    current_time = self.controller.get_current_time()
+                    wait_duration = 10 - (current_time - st)
+                self.controller.wait(wait_duration) 
+                pause_time = self.controller.get_current_time()
+                current_time = pause_time
 
             # Save point values (every minute for BACnet, every step for simulation)
-            device_type = self.controller.get_type()
             if device_type == 'simulation':
                 self.print_points(to_csv=to_csv, name=name)
             else:
-                if seconds_since_start%60 == 0:
+                if seconds_since_start%5 == 0:
                     if last_print == None or last_print != seconds_since_start/60:
                         last_print = seconds_since_start/60
                         label = self.step_labels[self.current_step-1] if self.current_step-1 < len(self.step_labels) else f"step{self.current_step}"
-                        print("Completed minute %d of %s of the test; Current values="%(int(seconds_since_start/60), self._get_step_label(self.current_step)))
+                        print("Completed minute %d of %s of the test; Current values="%(seconds_since_start/60, self._get_step_label(self.current_step)))
                         self.print_points(to_csv=to_csv, name=name)
+            
         # If time condition met, end test step
         # Update current time
         current_time = self.controller.get_current_time()
@@ -666,17 +741,18 @@ class Test:
                 obj.compute_value(seconds_since_start)   
                 # Convert value to device units and set in device
                 point = self.controller.get_point(obj.variable)
-                value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
-                self.controller.set_single_point(obj.variable, value_to_set)      
+                value_to_set = self.convert_test_to_device(obj.computed_value, point)
+                self.controller.set_single_point(obj.variable, value_to_set)   
+                print('In Bottom RAMP for {0}: seconds since start is {1}, setting value to {2}'.format(point.name, seconds_since_start, value_to_set))   
         for obj in Periodic.instances:
             if obj.params['periodic_step']:
                 obj.compute_value(seconds_since_start)
                 # Convert value to device units and set in device
                 point = self.controller.get_point(obj.variable)
-                value_to_set = convert(obj.computed_value, point.unit_in_test, point.unit_in_device).magnitude
+                value_to_set = self.convert_test_to_device(obj.computed_value, point)
                 self.controller.set_single_point(obj.variable, value_to_set)
         # Once new values set, let controller update outputs
-        self.controller.wait(duration = 0.0000001)
+        self.controller.wait(duration=0.0000001)
         
         print("test condition finished")
 
@@ -703,6 +779,7 @@ class Test:
         
         '''
         # TODO: Handle initialization step more explicitly in the test loop
+
         if actual_value is None:  # For simulation device, all varables are None before first wait() call
             check = False
         if operator == ">":
@@ -716,7 +793,7 @@ class Test:
             else:
                 check = False
         elif operator == "<":
-            if actual_value > expected_value:
+            if actual_value < expected_value:
                 check = True
             else:
                 check = False
@@ -741,7 +818,7 @@ class Test:
             # Get current point value and convert to test script units
             value = self.controller.get_current_variable_value(var)
             point = self.controller.get_point(var)
-            value = convert(value, point.unit_in_device, point.unit_in_test).magnitude
+            value = self.convert_device_to_test(value, point)
             vals[var] = value
         return vals
 
@@ -760,26 +837,32 @@ class Test:
             elif type(expected_val) == str:
                 if "ANY" in expected_val:
                     continue
+                
+                elif "INTERPOLATE(" in expected_val:
+                    op = InterpolateOperation(raw_string=expected_val, test_obj=self, variable=key)
+                    op.get_parameter_dict()                    
+                    op.compute_value()
+                    expected_value = op.computed_value 
+                    if abs(expected_value - actual_val) > error_bound:
+                        var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
+                        print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f"%(key, var_name, actual_val, expected_value, error_bound))
+                        return False
+                    
                 elif "LAST" in expected_val:
                     operator = expected_val.split('LAST')[0]
                     variable = key
                     expected_val = self.step_outputs[self.current_step - 1][variable]
-
                     if self.evaluate_boolean_expression(operator=operator, actual_value=actual_val, expected_value=expected_val, error_bound=error_bound):
                         continue
+
                     else:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print("For variable %s [or %s], actual value = %f not %s expected value = %f"%(key, var_name, actual_val, operator, expected_val))
                         return False
-                elif "INTERPOLATE(" in expected_val:
-                    op = InterpolateOperation(raw_string=expected_val, test_obj=self)
-                    op.get_parameter_dict()                    
-                    op.compute_value()
-                    expected_value = op.computed_value                                         
+
                 elif expected_val.startswith("="):
                     expression = expected_val[1:]
                     expected_value = self.evaluate_expression(expression=expression)
-
                     if abs(expected_value - actual_val) > error_bound:
                         var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
                         print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f" % (
@@ -870,7 +953,7 @@ class Test:
                 # Get last point value from device and convert to test script units
                 value = self.controller.get_variable_value_from_prev_time_step(current_variable)
                 point = self.controller.get_point(current_variable)
-                value = convert(value, point.unit_in_device, point.unit_in_test).magnitude
+                value = self.convert_device_to_test(value, point)
                 return value          
             else:
                 names_df = self.point_properties.loc[self.point_properties.name_in_test == expression]
@@ -879,12 +962,10 @@ class Test:
                 # Get current point value from device and convert to test script units
                 value = self.controller.get_current_variable_value(var_to_check)
                 point = self.controller.get_point(var_to_check)
-                value = convert(value, point.unit_in_device, point.unit_in_test).magnitude
+                value = self.convert_device_to_test(value, point)
                 return value
             else:
                 try:
-                    print('Currently in the first try block')
-                    print(f'The expression is {expression}')
                     float_value = float(expression)
                 except Exception as e:
                     print("WARNING: cannot find variable to check %s"%expression)
@@ -912,7 +993,6 @@ class Ramp(StateOperation):
     instances = []
     
     def __init__(self, raw_string, test_obj, variable):
-        # import pdb; pdb.set_trace()
         super().__init__(raw_string, test_obj, variable)        
         Ramp.instances.append(self)
 
@@ -930,43 +1010,41 @@ class Ramp(StateOperation):
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
         if len(string_parameters) < 4:
             self.params = {
-                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
-                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
-                "duration": self.test.evaluate_expression(string_parameters[2]),
-                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_start": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
+                "duration": self.test.evaluate_expression(string_parameters[2], current_variable = self.variable),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1], current_variable = self.variable) - self.test.evaluate_expression(string_parameters[0], current_variable = self.variable))/self.test.evaluate_expression(string_parameters[2], current_variable = self.variable), #self.test.evaluate_expression(string_parameters[2])/60,
                 "ramp_period":10,
-                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+                "ramp_step": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable) != self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
             }
         else:
             self.params = {
-                "ramp_start": self.test.evaluate_expression(string_parameters[0]),
-                "ramp_end": self.test.evaluate_expression(string_parameters[1]),
-                "duration": self.test.evaluate_expression(string_parameters[2]),
-                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1]) - self.test.evaluate_expression(string_parameters[0]))/self.test.evaluate_expression(string_parameters[2]), #self.test.evaluate_expression(string_parameters[2])/60,
-                "ramp_period":self.test.evaluate_expression(string_parameters[3]),
-                "ramp_step": self.test.evaluate_expression(string_parameters[0]) != self.test.evaluate_expression(string_parameters[1]),
+                "ramp_start": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),
+                "ramp_end": self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
+                "duration": self.test.evaluate_expression(string_parameters[2], current_variable = self.variable),
+                "ramp_rate": abs(self.test.evaluate_expression(string_parameters[1], current_variable = self.variable) - self.test.evaluate_expression(string_parameters[0], current_variable = self.variable))/self.test.evaluate_expression(string_parameters[2], current_variable = self.variable), #self.test.evaluate_expression(string_parameters[2])/60,
+                "ramp_period":self.test.evaluate_expression(string_parameters[3], current_variable = self.variable),
+                "ramp_step": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable) != self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
             }
 
-    def compute_value(self, seconds_since_start):        
+    def compute_value(self, seconds_since_start):     
         ramp_start = self.params['ramp_start']
         ramp_end = self.params['ramp_end']
         ramp_rate = self.params['ramp_rate']
         ramp_period = self.params['ramp_period']
         ramp_duration = self.params['duration']
-        if seconds_since_start % ramp_period == 0:
-            # import pdb; pdb.set_trace()
-            current_period = (seconds_since_start / ramp_period)
-            
-            if ramp_start < ramp_end:
-                value_to_set = ramp_start + ramp_rate * current_period * ramp_period             
-                if value_to_set > ramp_end:
-                    value_to_set = ramp_end
-            elif ramp_start > ramp_end:
-                value_to_set = ramp_start - ramp_rate * current_period * ramp_period
-                if value_to_set < ramp_end:
-                    value_to_set = ramp_end
-            if seconds_since_start <= ramp_duration:
-                self.computed_value = value_to_set
+        # import pdb; pdb.set_trace()
+        current_period = (seconds_since_start / ramp_period)
+        
+        if ramp_start < ramp_end:
+            value_to_set = ramp_start + ramp_rate * current_period * ramp_period             
+            if value_to_set > ramp_end:
+                value_to_set = ramp_end
+        elif ramp_start > ramp_end:
+            value_to_set = ramp_start - ramp_rate * current_period * ramp_period
+            if value_to_set < ramp_end:
+                value_to_set = ramp_end
+        self.computed_value = value_to_set
 
 class Periodic(StateOperation):
     OP_TOKEN = "PERIODIC("
@@ -990,14 +1068,14 @@ class Periodic(StateOperation):
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
         if len(string_parameters) < 2:
             self.params = {
-                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_start": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),            
                 "periodic_expression": string_parameters[0],
                 "period": 10,
                 "periodic_step": True,
             }
         else:    
             self.params = {
-                "periodic_start": self.test.evaluate_expression(string_parameters[0]),            
+                "periodic_start": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),            
                 "periodic_expression": string_parameters[0],
                 "period": float(string_parameters[1]),
                 "periodic_step": True,
@@ -1007,19 +1085,19 @@ class Periodic(StateOperation):
         periodic_expression = self.params['periodic_expression']
         period = self.params['period']
         #import pdb; pdb.set_trace()
-        if seconds_since_start % period == 0:
-            value_to_set = self.test.evaluate_expression(expression=periodic_expression)
-            var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
-            print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
-            self.computed_value = value_to_set
+        value_to_set = self.test.evaluate_expression(expression=periodic_expression, current_variable = self.variable)
+        var_name_in_test = self.test.point_properties.loc[self.variable].name_in_test
+        print("Periodic: Changing variable %s to %f" % (var_name_in_test, value_to_set))
+        self.computed_value = value_to_set
 
 class StateLessOperation:
     OP_TOKEN = None 
-    def __init__(self, raw_string, test_obj):
+    def __init__(self, raw_string, test_obj, variable):
         self.raw_string = raw_string
         self.test = test_obj
         self.params = {}
         self.computed_value = None
+        self.variable = variable
 
     def get_parameter_dict(self):
         """Each child overrides this to extract parameters from the raw string."""
@@ -1064,8 +1142,8 @@ class TwoTermOperation(StateLessOperation):
         string_parameters = [s.replace(" ", "") for s in val.split(";")]
 
         self.params = {
-            "first_term": self.test.evaluate_expression(string_parameters[0]),
-            "second_term": self.test.evaluate_expression(string_parameters[1]),
+            "first_term": self.test.evaluate_expression(string_parameters[0], current_variable = self.variable),
+            "second_term": self.test.evaluate_expression(string_parameters[1], current_variable = self.variable),
         }
 
     def compute_value(self):
@@ -1098,17 +1176,17 @@ class InterpolateOperation(StateLessOperation):
         val = self.raw_string.split(self.OP_TOKEN)[1][:-1]      
         string_parameters = self.split_top_level_semicolons(val)
         string_parameters = [s.replace(' ', '') for s in string_parameters]
-        self.params['x'] = self.test.evaluate_expression(expression=string_parameters[0])
-        self.params['x0'] = self.test.evaluate_expression(expression=string_parameters[1])        
-        self.params['x1'] = self.test.evaluate_expression(expression=string_parameters[2])        
-        self.params['y0'] = self.test.evaluate_expression(expression=string_parameters[3])        
-        self.params['y1'] = self.test.evaluate_expression(expression=string_parameters[4]) 
+        self.params['x'] = self.test.evaluate_expression(expression=string_parameters[0], current_variable = self.variable)
+        self.params['x0'] = self.test.evaluate_expression(expression=string_parameters[1], current_variable = self.variable)        
+        self.params['x1'] = self.test.evaluate_expression(expression=string_parameters[2], current_variable = self.variable)        
+        self.params['y0'] = self.test.evaluate_expression(expression=string_parameters[3], current_variable = self.variable)        
+        self.params['y1'] = self.test.evaluate_expression(expression=string_parameters[4], current_variable = self.variable) 
         if len(string_parameters) > 5:
-            self.params['min_out'] = self.test.evaluate_expression(expression=string_parameters[5]) 
+            self.params['min_out'] = self.test.evaluate_expression(expression=string_parameters[5], current_variable = self.variable) 
         else:
             self.params['min_out'] = None        
         if len(string_parameters) > 6:
-            self.params['max_out'] = self.test.evaluate_expression(expression=string_parameters[6]) 
+            self.params['max_out'] = self.test.evaluate_expression(expression=string_parameters[6], current_variable = self.variable) 
         else:
             self.params['max_out'] = None
         

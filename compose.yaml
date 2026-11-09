@@ -10,6 +10,8 @@ services:
       - ./:/work
       - cache:/root/.cache
       - cache:/root/.openmodelica
+    ports:
+      - "8501:8501"  # streamlit UI served by `g36conftest-viz`
     stdin_open: true # equivalent to docker run -i
     tty: true        # equivalent to docker run -t
 
