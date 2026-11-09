@@ -70,15 +70,13 @@ platforms = [
 g36conftest = { path = ".", editable = true }
 
 
-[tool.pixi.feature.viz.pypi-dependencies]
-streamlit = ">=1.35"
-plotly = ">=5.20"
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
-bacnet =    {   features = ["bacnet",     ],                    solve-group = "default" }
-simulation = {  features = ["simulation", ],                    solve-group = "default" }
-dev = {         features = ["simulation", "bacnet", "cicd", "test" ],  solve-group = "default" }
+viz = {         features = ["viz"],                                     solve-group="default"}
+bacnet =    {   features = ["bacnet", "viz"],                           solve-group = "default" }
+simulation = {  features = ["simulation", "viz"],                       solve-group = "default" }
+dev = {         features = ["simulation", "bacnet", "cicd", "test" ],   solve-group = "default" }
 
 [tool.pixi.tasks]
 test = { cmd = "pytest", cwd = "tests", default-environment="dev" }
