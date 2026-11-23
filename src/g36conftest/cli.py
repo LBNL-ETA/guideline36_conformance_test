@@ -76,20 +76,22 @@ def cli():
         if to_csv and viz_cfg.get('enabled', False):
             try:
                 from viz.launcher import launch_after_test
-            except ImportError as e:
-                print(
-                    "[viz] viz.enabled is true but the viz extras are not "
-                    "installed (streamlit/plotly missing). Install with "
-                    "`pip install .[viz]` or run in the pixi `simulation`/"
-                    f"`bacnet`/`viz` environment. Skipping. ({e})"
-                )
-            else:
                 run_dir = test.results_dir / f"run_{name}"
                 launch_after_test(
                     run_dir,
                     port=int(viz_cfg.get('port', 8501)),
                     address=str(viz_cfg.get('address', '0.0.0.0')),
                 )
+            except (    ImportError,        #  cant find a specific name
+                        ModuleNotFoundError # module missing
+                     ) as e:
+                print(
+                    "[viz] viz.enabled is true but the viz extras are not "
+                    "installed (streamlit/plotly missing). Install with "
+                    "`pip install .[viz]` or run in the pixi `simulation`/"
+                    f"`bacnet`/`viz` environment. Skipping. ({e})"
+                )
+
 
 if __name__ == "__main__":
     cli()
