@@ -73,10 +73,10 @@ g36conftest = { path = ".", editable = true }
 
 [tool.pixi.environments]
 default = { solve-group = "default" }  # just the 'common' ones
-viz = {         features = ["viz"],                                     solve-group="default"}
-bacnet =    {   features = ["bacnet", "viz"],                           solve-group = "default" }
-simulation = {  features = ["simulation", "viz"],                       solve-group = "default" }
-dev = {         features = ["simulation", "bacnet", "cicd", "test" ],   solve-group = "default" }
+viz = {         features = ["viz"],                 solve-group="default"}
+bacnet =    {   features = ["bacnet", "viz"],       solve-group = "default" }
+simulation = {  features = ["simulation", "viz"],   solve-group = "default" }
+dev = {         features = ["simulation", "bacnet", "cicd", "test", 'viz' ],   solve-group = "default" }
 
 [tool.pixi.tasks]
 test = { cmd = "pytest", cwd = "tests", default-environment="dev" }
