@@ -477,38 +477,15 @@ class Test:
             if pd.notna(condition['VariableName']):
                 output_variable_to_check = condition['VariableName']
                 output_value_to_check = condition['VariableValue']
-                # Get the output value to check
-                # If the value to check is just a number, the check is equality to the number
-                try:
-                    output_value_to_check = float(output_value_to_check)
-                    operator = "="
-                # Otherwise the value to check is an expression that needs to be parsed
-                except:
-                    # Check if the value to check is the form e.g. <=70
-                    strings = re.findall(r"\A\D+", output_value_to_check)
-                    for string in strings:
-                        # If it is, use the operator and the value to be compared
-                        if string in ['>', '>=', '<', '<=']:
-                            operator = string
-                            output_value_to_check = float(output_value_to_check.split(operator)[1])
-                            ref_var = False
-                            break
-                        # Otherwise, the value to check is equality to a referenced variable
-                        else:
-                            ref_var = True
-                    # The value to check is equality to a referenced variable
-                    if ref_var:
-                        operator = "="
-                        point = self.controller.get_point_by_test_name(output_value_to_check)
-                        output_value_to_check = self.controller.get_current_variable_value(point.name)
-                        output_value_to_check = self.convert_device_to_test(output_value_to_check, point)
+                # Parse the expected value using the common function
+                operator, expected_value, is_any = self._parse_expected_value(output_value_to_check, variable_key=output_variable_to_check)
                 # Get actual point value and convert to test script units
                 actual_output_variable_value = self.controller.get_current_variable_value(output_variable_to_check)
                 point = self.controller.get_point(output_variable_to_check)
                 actual_output_variable_value = self.convert_device_to_test(actual_output_variable_value, point)
                 # If condition met, end test step
-                if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=output_value_to_check):
-                    print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, output_value_to_check))
+                if self.evaluate_boolean_expression(operator=operator, actual_value=actual_output_variable_value, expected_value=expected_value):
+                    print("condition satisfied, variable %s value %f %s condition value %f"%(output_variable_to_check, actual_output_variable_value, operator, expected_value))
                     print()
 
                     return
@@ -566,6 +543,116 @@ class Test:
         self.controller.wait(duration=0.0000001)
         
         print("test condition finished")
+
+    def _parse_expected_value(self, expected_val, variable_key=None):
+        """
+        Parse an expected value from the test script into an operator and numeric value.
+
+        Handles all possible cases of expected output:
+        - Float/int: operator is "="
+        - String that is a number (e.g., "70"): operator is "="
+        - String with operator (e.g., ">=70", "<=71"): parse operator and numeric value
+        - String with "ANY": returns is_any=True to indicate skip
+        - String with "INTERPOLATE(": computes interpolated value, operator is "="
+        - String with "LAST": uses previous step's value, operator from prefix
+        - String starting with "=": evaluates expression, operator is "="
+        - String referencing another variable: gets that variable's value, operator is "="
+
+        Parameters
+        ----------
+        expected_val: <float, int, str>
+            The expected value from the test script.
+        variable_key: str, optional
+            The variable key, used for LAST and INTERPOLATE operations.
+
+        Returns
+        -------
+        operator: str or None
+            The comparison operator ("=", ">", ">=", "<", "<="), or None if ANY.
+        expected_value: <float, int> or None
+            The numeric value to compare against, or None if ANY.
+        is_any: bool
+            True if the expected value is "ANY" and should be skipped.
+
+        """
+        # If it's already a number (not bool), operator is "="
+        if isinstance(expected_val, (int, float)) and not isinstance(expected_val, bool):
+            operator = "="
+            expected_value = expected_val
+            is_any = False
+
+        elif isinstance(expected_val, str):
+            # Check for ANY - skip this variable
+            if "ANY" in expected_val:
+                operator = None
+                expected_value = None
+                is_any = True
+
+            # Check for INTERPOLATE - compute the interpolated value
+            elif "INTERPOLATE(" in expected_val:
+                op = InterpolateOperation(raw_string=expected_val, test_obj=self, variable=variable_key)
+                op.get_parameter_dict()
+                op.compute_value()
+                operator = "="
+                expected_value = op.computed_value
+                is_any = False
+
+            # Check for LAST - use previous step's output value
+            elif "LAST" in expected_val:
+                operator = expected_val.split('LAST')[0] if expected_val.split('LAST')[0] else "="
+                if self.current_step and self.current_step > 1 and variable_key in self.step_outputs.get(self.current_step - 1, {}):
+                    expected_value = self.step_outputs[self.current_step - 1][variable_key]
+                else:
+                    # Fallback: get from device previous time step
+                    value = self.controller.get_variable_value_from_prev_time_step(variable_key)
+                    point = self.controller.get_point(variable_key)
+                    expected_value = self.convert_device_to_test(value, point)
+                is_any = False
+
+            # Check for expression starting with "="
+            elif expected_val.startswith("="):
+                expression = expected_val[1:]
+                operator = "="
+                expected_value = self.evaluate_expression(expression=expression, current_variable=variable_key)
+                is_any = False
+
+            # Check for operator prefix (e.g., ">=70", "<=71", ">50", "<30")
+            else:
+                # Try to parse operator from the beginning of the string
+                operator = None
+                for op in ['>=', '<=', '>', '<', '=']:
+                    if expected_val.startswith(op):
+                        operator = op
+                        remaining = expected_val[len(op):]
+                        try:
+                            expected_value = float(remaining)
+                            is_any = False
+                            break
+                        except ValueError:
+                            # Not a numeric value after operator, might be a variable reference
+                            continue
+
+                if operator is None:
+                    # No operator found, try to parse as float (operator is "=")
+                    try:
+                        expected_value = float(expected_val)
+                        operator = "="
+                        is_any = False
+                    except ValueError:
+                        # It's a variable reference - get the current value of that variable
+                        operator = "="
+                        point = self.controller.get_point_by_test_name(expected_val)
+                        value = self.controller.get_current_variable_value(point.name)
+                        expected_value = self.convert_device_to_test(value, point)
+                        is_any = False
+
+        else:
+            # Fallback for other types
+            operator = "="
+            expected_value = expected_val
+            is_any = False
+
+        return operator, expected_value, is_any
 
     def evaluate_boolean_expression(self, operator, actual_value, expected_value, error_bound=0):
         '''Checks if a boolean expression is valid, and if so, if it is true or false.
@@ -634,57 +721,59 @@ class Test:
         return vals
 
     def assert_output(self, expected_op_dict, actual_output_dict, acceptable_bounds_dict):
+        """
+        Check that actual output values match expected values from the test script.
+
+        Uses _parse_expected_value to handle all possible cases of expected output:
+        floats, operator expressions (>=, <=, >, <), ANY, INTERPOLATE, LAST, and =expressions.
+
+        Parameters
+        ----------
+        expected_op_dict: dict
+            Dictionary of expected output values keyed by variable name.
+        actual_output_dict: dict
+            Dictionary of actual output values keyed by variable name.
+        acceptable_bounds_dict: dict
+            Dictionary of acceptable error bounds keyed by variable name.
+
+        Returns
+        -------
+        result: bool
+            True if all outputs match expected values within bounds, False otherwise.
+
+        """
         for key in expected_op_dict:
             expected_val = expected_op_dict[key]
             actual_val = actual_output_dict[key]
             error_bound = acceptable_bounds_dict[key]
 
+            # Convert string actual values (e.g., 'inactive'/'active') to numeric
             if type(actual_val) == str:
                 if actual_val == 'inactive':
                     actual_val = 0
                 else:
                     actual_val = 1
-            
-            elif type(expected_val) == str:
-                if "ANY" in expected_val:
-                    continue
-                
-                elif "INTERPOLATE(" in expected_val:
-                    op = InterpolateOperation(raw_string=expected_val, test_obj=self, variable=key)
-                    op.get_parameter_dict()                    
-                    op.compute_value()
-                    expected_value = op.computed_value 
-                    if abs(expected_value - actual_val) > error_bound:
-                        var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
-                        print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f"%(key, var_name, actual_val, expected_value, error_bound))
-                        return False
-                    
-                elif "LAST" in expected_val:
-                    operator = expected_val.split('LAST')[0]
-                    variable = key
-                    expected_val = self.step_outputs[self.current_step - 1][variable]
-                    if self.evaluate_boolean_expression(operator=operator, actual_value=actual_val, expected_value=expected_val, error_bound=error_bound):
-                        continue
 
-                    else:
-                        var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
-                        print("For variable %s [or %s], actual value = %f not %s expected value = %f"%(key, var_name, actual_val, operator, expected_val))
-                        return False
+            # Parse the expected value into operator and numeric value
+            operator, expected_value, is_any = self._parse_expected_value(expected_val, variable_key=key)
 
-                elif expected_val.startswith("="):
-                    expression = expected_val[1:]
-                    expected_value = self.evaluate_expression(expression=expression)
-                    if abs(expected_value - actual_val) > error_bound:
-                        var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
-                        print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f" % (
-                        key, var_name, actual_val, expected_value, error_bound))
-                        return False
+            # Skip if expected value is ANY
+            if is_any:
+                continue
 
-            else:
-                if abs(expected_val - actual_val) > error_bound:
-                    var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
-                    print ("outside bounds for %s [or %s], actual value = %f, expected value = %f, bounds = %f"%(key, var_name, actual_val, expected_val, error_bound))
-                    return False
+            # Use evaluate_boolean_expression to check if actual matches expected
+            check = self.evaluate_boolean_expression(
+                operator=operator,
+                actual_value=actual_val,
+                expected_value=expected_value,
+                error_bound=error_bound
+            )
+
+            if not check:
+                var_name = self.point_properties.loc[self.point_properties.index == key].name_in_test.values[0]
+                print("For variable %s [or %s], actual value = %f not %s expected value = %f (bounds = %f)" % (
+                    key, var_name, actual_val, operator, expected_value, error_bound))
+                return False
 
         return True
 
