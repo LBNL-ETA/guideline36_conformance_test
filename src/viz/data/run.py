@@ -51,68 +51,131 @@ class RunHandle:
         return pd.read_csv(self.values_path)
 
     def load_test_times(self) -> Optional[pd.DataFrame]:
+        """
+        Load the test step timing table from ``*_test_times.csv``.
+
+        Normalizes legacy ``step`` column headers to ``marker`` so older run
+        artifacts remain readable.
+
+        Returns
+        -------
+        df: pandas df or None
+          DataFrame of timing and marker rows, or ``None`` if no
+          ``*_test_times.csv`` file exists for the run.
+
+        """
         if not self.test_times_path:
-            return None
-        return pd.read_csv(self.test_times_path)
+            df = None
+        else:
+            df = pd.read_csv(self.test_times_path, keep_default_na=False)
+            if "marker" not in df.columns and "step" in df.columns:
+                df = df.rename(columns={"step": "marker"})
+
+        return df
 
     def overall_passed(self) -> Optional[bool]:
-        """Return True if the runner logged completion (step=999); False if it
-        logged an abort (step=-1); None if no test_times.csv is available."""
+        """
+        Determine overall pass/fail status of the run from ``test_times.csv``.
+
+        Returns
+        -------
+        passed: bool or None
+          ``True`` if completion was logged (``marker=999``) without failures,
+          ``False`` if a failure was logged (``marker=-1``), or ``None`` if no
+          status can be determined.
+
+        """
         tt = self.load_test_times()
-        if tt is None or tt.empty:
-            return None
-        steps = set(tt["step"].astype(int).tolist())
-        if -1 in steps:
-            return False
-        if 999 in steps:
-            return True
-        return None
+        passed = None
+        if tt is not None and not tt.empty:
+            markers = set(tt["marker"].astype(int).tolist())
+            if -1 in markers:
+                passed = False
+            elif 999 in markers:
+                passed = True
+
+        return passed
 
     def total_duration_minutes(self) -> Optional[float]:
+        """
+        Return the total run duration in minutes from ``test_times.csv``.
+
+        Returns
+        -------
+        duration: float or None
+          Total elapsed duration in minutes from the ``marker=999`` summary row
+          (falling back to ``marker=-1`` for legacy aborted runs), or ``None``
+          if unavailable.
+
+        """
         tt = self.load_test_times()
-        if tt is None or tt.empty:
-            return None
-        row = tt[tt["step"].astype(int) == 999]
-        if row.empty:
-            row = tt[tt["step"].astype(int) == -1]
-        if row.empty:
-            return None
-        return float(row.iloc[0]["duration"])
+        duration = None
+        if tt is not None and not tt.empty:
+            row = tt[tt["marker"].astype(int) == 999]
+            if row.empty:
+                row = tt[tt["marker"].astype(int) == -1]
+            if not row.empty:
+                duration = float(row.iloc[0]["duration"])
+
+        return duration
 
     def step_windows(self, script: TestScript) -> list[StepWindow]:
-        """Return one :class:`StepWindow` per test step.
+        """
+        Return one ``StepWindow`` per executed or reconstructed test step.
 
         Prefer ``test_times.csv`` (encodes both timing and pass/fail via the
-        special ``-1`` / ``999`` rows). If it's missing (older runs), fall
-        back to reconstructing boundaries from the Excel ``ClockTime`` column.
+        special ``-1`` / ``999`` marker rows). If it is missing (older runs),
+        fall back to reconstructing boundaries from the Excel ``ClockTime``
+        column.
 
-        Step numbering matches the runner: ``step=k`` in ``test_times.csv``
-        corresponds to ``script.step_labels[k-1]`` (see Test.py:285 —
-        ``self.step_labels[i-1]``). Step 1 is the initialization step; it is
-        not written to ``test_times.csv``, so we synthesize it here.
+        Step numbering matches the runner: ``marker=k`` in ``test_times.csv``
+        corresponds to ``script.step_labels[k-1]``. Step 1 is the
+        initialization step; it is not written to ``test_times.csv``, so we
+        synthesize it here.
 
-        The ``step=-1`` row is a *marker* meaning "test aborted", not a step
-        number. The actual failing step is the one *after* the last row that
-        succeeded — its label comes from ``step_labels`` at that position.
+        A ``marker=-1`` row records a step failure. When ``test_block`` /
+        ``test_step`` columns are present on that row, they identify the
+        failing step directly (along with its ``start_time`` and ``end_time``);
+        otherwise, for legacy runs that aborted on first failure, the failing
+        step is inferred as the one *after* the last succeeded step.
 
         First step of each *block* (label-prefix group — A1, B1, C1, …) is
         also treated as a non-checked auto-pass, matching the runner's
         ``if i > 1`` guard applied per-block rather than only once overall.
+
+        Parameters
+        ----------
+        script: TestScript
+          Parsed Excel test script providing step labels and clock times.
+
+        Returns
+        -------
+        windows: list
+          List of ``StepWindow`` instances ordered by step number.
+
         """
         labels = script.step_labels
         tt = self.load_test_times()
 
         if tt is not None and not tt.empty:
-            tt_real = tt[~tt["step"].astype(int).isin([-1, 999])].copy()
-            tt_real["step"] = tt_real["step"].astype(int)
-            tt_real = tt_real.sort_values("step").reset_index(drop=True)
+            tt_real = tt[~tt["marker"].astype(int).isin([-1, 999])].copy()
+            tt_real["marker"] = tt_real["marker"].astype(int)
+            tt_real = tt_real.sort_values("marker").reset_index(drop=True)
 
-            fail_row = tt[tt["step"].astype(int) == -1]
-            fail_end_time = float(fail_row.iloc[0]["end_time"]) if not fail_row.empty else None
+            fail_rows = tt[tt["marker"].astype(int) == -1]
+            has_block_step_cols = "test_block" in tt.columns and "test_step" in tt.columns
 
             windows: list[StepWindow] = []
 
-            first_real_start = float(tt_real.iloc[0]["start_time"]) if not tt_real.empty else 0.0
+            start_candidates: list[float] = []
+            if not tt_real.empty:
+                start_candidates.append(float(tt_real.iloc[0]["start_time"]))
+            if has_block_step_cols and not fail_rows.empty:
+                for _, fr in fail_rows.iterrows():
+                    if _resolve_fail_row_label(fr) is not None:
+                        start_candidates.append(float(fr["start_time"]))
+            first_real_start = min(start_candidates) if start_candidates else 0.0
+
             windows.append(
                 StepWindow(
                     step_number=1,
@@ -125,7 +188,7 @@ class RunHandle:
             )
 
             for _, r in tt_real.iterrows():
-                k = int(r["step"])
+                k = int(r["marker"])
                 label = labels[k - 1] if k - 1 < len(labels) else f"step{k}"
                 windows.append(
                     StepWindow(
@@ -138,21 +201,33 @@ class RunHandle:
                     )
                 )
 
-            if fail_end_time is not None:
-                last_passed_step = int(tt_real.iloc[-1]["step"]) if not tt_real.empty else 1
-                aborted_step = last_passed_step + 1
-                prev_end = max(w.t_end for w in windows) if windows else 0.0
-                fail_label = (
-                    labels[aborted_step - 1]
-                    if 0 <= aborted_step - 1 < len(labels)
-                    else f"step{aborted_step}"
-                )
+            for _, fr in fail_rows.iterrows():
+                fail_end_time = float(fr["end_time"])
+                resolved_label = _resolve_fail_row_label(fr) if has_block_step_cols else None
+
+                if resolved_label is not None:
+                    fail_label = resolved_label
+                    if fail_label in labels:
+                        aborted_step = labels.index(fail_label) + 1
+                    else:
+                        aborted_step = (max(w.step_number for w in windows) + 1) if windows else 2
+                    fail_start_time = float(fr["start_time"])
+                else:
+                    last_passed_step = int(tt_real.iloc[-1]["marker"]) if not tt_real.empty else 1
+                    aborted_step = last_passed_step + 1
+                    fail_start_time = max(w.t_end for w in windows) if windows else 0.0
+                    fail_label = (
+                        labels[aborted_step - 1]
+                        if 0 <= aborted_step - 1 < len(labels)
+                        else f"step{aborted_step}"
+                    )
+
                 if not any(w.step_number == aborted_step for w in windows):
                     windows.append(
                         StepWindow(
                             step_number=aborted_step,
                             label=fail_label,
-                            t_start=prev_end,
+                            t_start=fail_start_time,
                             t_end=fail_end_time,
                             passed=False,
                             checked=True,
@@ -163,10 +238,12 @@ class RunHandle:
                         if w.step_number == aborted_step:
                             w.passed = False
 
+            windows.sort(key=lambda w: w.step_number)
             _mark_block_firsts_auto_pass(windows)
-            return windows
+        else:
+            windows = self._reconstruct_from_script(script)
 
-        return self._reconstruct_from_script(script)
+        return windows
 
     def _reconstruct_from_script(self, script: TestScript) -> list[StepWindow]:
         windows: list[StepWindow] = []
@@ -185,7 +262,39 @@ class RunHandle:
             )
             t += dt
         _mark_block_firsts_auto_pass(windows)
+
         return windows
+
+
+def _resolve_fail_row_label(row: pd.Series) -> Optional[str]:
+    """
+    Build the step label from a failure marker row's block and step columns.
+
+    Parameters
+    ----------
+    row: pandas Series
+      A row from ``test_times.csv`` with ``marker == -1``.
+
+    Returns
+    -------
+    label: str or None
+      Step label such as ``'BB2'`` or ``'step2'``, or ``None`` if ``test_step``
+      is missing or empty.
+
+    """
+    raw_step = row.get("test_step")
+    if raw_step is None or pd.isna(raw_step) or str(raw_step).strip() == "":
+        label = None
+    else:
+        try:
+            sn_str = str(int(float(raw_step)))
+        except (TypeError, ValueError):
+            sn_str = str(raw_step).strip()
+        raw_block = row.get("test_block")
+        blk_str = "" if raw_block is None or pd.isna(raw_block) else str(raw_block).strip()
+        label = f"{blk_str}{sn_str}" if blk_str else f"step{sn_str}"
+
+    return label
 
 
 def _block_prefix(label: str) -> str:

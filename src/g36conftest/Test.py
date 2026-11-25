@@ -425,7 +425,43 @@ class Test:
                      ','.join([str(value) for value in points.values()]) + '\n'
             fp.write(values)
 
-    def save_test_times(self, to_csv=False, name=None, step=None, st=None, et=None, duration=None):
+    def save_test_times(self, to_csv=False, name=None, marker=None, st=None, et=None, duration=None):
+        """
+        Save test step or run timing information to ``{name}_test_times.csv``.
+
+        Writes a row with columns ``marker,test_block,test_step,start_time,end_time,duration``.
+        For regular steps (``marker >= 1``) and step failure markers (``marker == -1``,
+        resolved via ``self.current_step``), ``test_block`` and ``test_step`` are
+        populated from the test script; for the overall run summary (``marker == 999``),
+        they are left empty.
+
+        Parameters
+        ----------
+        to_csv: bool, optional
+          Whether to write timing data to CSV.
+          Default value is False.
+        name: str, optional
+          Run name used for the results folder and CSV filename.
+          Default value is None.
+        marker: int, optional
+          1-indexed step number for a passed step, ``-1`` for a failed step, or
+          ``999`` for the overall test summary row.
+          Default value is None.
+        st: float, optional
+          Start time in seconds.
+          Default value is None.
+        et: float, optional
+          End time in seconds.
+          Default value is None.
+        duration: float, optional
+          Elapsed duration in minutes.
+          Default value is None.
+
+        Returns
+        -------
+        None
+
+        """
         if to_csv:
             # Create output directory if it doesn't exist
             output_dir = self.results_dir / f"run_{name}"
@@ -434,12 +470,30 @@ class Test:
             file = output_dir / f"{name}_test_times.csv"
             if not file.exists():
                 fp = open(file, "w")
-                column_names = 'step,start_time,end_time,duration\n'
+                column_names = 'marker,test_block,test_step,start_time,end_time,duration\n'
                 fp.write(column_names)
             else:
                 fp = open(file, "a")
 
-            values = "%d,%f,%f,%f\n"%(step, st, et, duration)
+            # Look up block/step for regular steps and the failure marker (marker=-1,
+            # via self.current_step); leave empty for the overall summary row (marker=999).
+            if marker == 999:
+                lookup_step = None
+            elif marker is not None and marker >= 1:
+                lookup_step = marker
+            else:
+                lookup_step = self.current_step
+
+            if lookup_step is not None and lookup_step >= 1:
+                blk = self._get_step_block(lookup_step)
+                sn = self._get_step_step_num(lookup_step)
+                blk_str = "" if blk is None else str(blk)
+                sn_str = "" if sn is None else str(sn)
+            else:
+                blk_str = ""
+                sn_str = ""
+
+            values = "%d,%s,%s,%f,%f,%f\n" % (marker, blk_str, sn_str, st, et, duration)
             fp.write(values)
 
     def start_test(self, to_csv=False, name=None):
@@ -516,7 +570,7 @@ class Test:
                     print("Test failed at test step %s! Skipping rest of block %s." %
                           (failing_label, current_block))
                     # Preserve original behavior of logging a failure marker to _test_times.csv.
-                    self.save_test_times(to_csv=to_csv, name=name, step=-1, st=step_start_time, et=step_end_time,
+                    self.save_test_times(to_csv=to_csv, name=name, marker=-1, st=step_start_time, et=step_end_time,
                                          duration=step_time_elapsed)
                     Ramp.destroy_all()
                     Periodic.destroy_all()
@@ -532,7 +586,7 @@ class Test:
                 print("Passed %s; Time taken for this step = %f minutes"%(self._get_step_label(i), round(step_time_elapsed, 2)))
                 Ramp.destroy_all()
                 Periodic.destroy_all()
-                self.save_test_times(to_csv=to_csv, name=name, step=i, st=step_start_time, et=step_end_time, duration=step_time_elapsed)
+                self.save_test_times(to_csv=to_csv, name=name, marker=i, st=step_start_time, et=step_end_time, duration=step_time_elapsed)
 
             else:
                 print("not checking first step values")
@@ -559,7 +613,7 @@ class Test:
         else:
             print("Controller passed the test successfully! Total time = %f minutes" % round(time_elapsed, 2))
 
-        self.save_test_times(to_csv=to_csv, name=name, step=999, st=start_time, et=end_time,
+        self.save_test_times(to_csv=to_csv, name=name, marker=999, st=start_time, et=end_time,
                              duration=time_elapsed)
         return
 
